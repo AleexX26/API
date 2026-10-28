@@ -20,6 +20,7 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 - Print24: `python -m app.collectors.sitemaps`, luego `python -m app.collectors.products` (171 productos, ~15 min), luego `python -m app.collectors.specs`.
 - Otros: `python -m app.collectors.<tuskamisetas|onlineprinters|printai> URL…`; Onlineprinters entero: `python -m app.collectors.onlineprinters` (usa el sitemap en caché).
 - Variaciones Print24 (navegador, entorno aparte `.venv-browser` con scrapling+playwright+Chromium, 719 MB en `%LOCALAPPDATA%\ms-playwright`): `.venv-browser\Scripts\python.exe -m app.collectors.variants --max-variations 3 URL`.
+- PC nuevo de cero (instala Git, Python, clona el repo, descomprime los datos y prepara el entorno): copiar solo `instalar_todo.bat` (y `API-datos.zip`) y hacer doble clic.
 - Traslado a otro PC y recogida larga: ver `docs/MIGRACION.md` (`preparar_pc_nuevo.cmd`, `reanudar_recogida.cmd`, `estado_recogida.cmd`, `parar_recogida.cmd`, `empaquetar_para_otro_pc.cmd`; `python -m app.collectors.status`).
 - Dependencias de tests: `requirements.txt` + `requirements-web.txt`.
 
