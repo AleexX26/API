@@ -1,0 +1,9 @@
+[project]
+name = "print24-importer"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Offline Print24 price-matrix prototype"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

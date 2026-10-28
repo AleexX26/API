@@ -1,0 +1,15 @@
+.venv/
+.uv-cache/
+__pycache__/
+.pytest_cache/
+.test-runs/
+*.sqlite3
+.env
+data/exports/
+
+# datos y entornos: no van a git (la base de datos viaja por ZIP)
+data/*
+!data/README.md
+dist/
+.venv-browser/
+*.log

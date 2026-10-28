@@ -1,0 +1,11 @@
+{
+  "product_id": "fixture-product",
+  "properties": [{"name": "fixture-format", "id": "fixture-option"}],
+  "country": "ES",
+  "currency": "EUR",
+  "account_scope": "synthetic-test-only",
+  "services": {"premium_file_check": 0},
+  "validity_evidence": "Synthetic test configuration; NOT validated by Print24",
+  "observed_at": "2026-10-01T00:00:00+00:00",
+  "valid_until": "2026-11-01T00:00:00+00:00"
+}

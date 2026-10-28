@@ -1,0 +1,32 @@
+{
+  "provenance": "Ejemplos proporcionados por el usuario; no comprobados remotamente ni vinculados entre sí",
+  "price_matrix_request": {
+    "delivery_country_code": "ES",
+    "product_alias_id": 2,
+    "properties": [
+      {"id": "3765", "name": "availability"},
+      {"id": "4560", "name": "quality"},
+      {"id": "6315", "name": "material_spec"},
+      {"id": "4625", "name": "format"},
+      {"id": "6309", "name": "aspect_ratio"},
+      {"id": "1015", "name": "seiten"},
+      {"id": "1197", "name": "verarbeitung"},
+      {"id": "115", "name": "farben"},
+      {"id": "6003", "name": "accessories"},
+      {"id": "823", "name": "proofformat"},
+      {"id": "840", "name": "proofpages"},
+      {"id": "27", "name": "motive"},
+      {"id": "6421", "name": "dispatch_prepare"}
+    ],
+    "quantities": ["421", "433", "365", "398", "4123"],
+    "premium_file_check": 0
+  },
+  "product_feature_fragment": {
+    "prop_details": [
+      {"prop_translated": "297 x 420 mm DIN A3", "box_name_title": "Formato", "box_name": "format", "prop_id": "189"},
+      {"prop_translated": "135 g/m² Papel estucado", "box_name_title": "Papel", "box_name": "papier", "prop_id": "4109"}
+    ],
+    "productAliasName": "poster",
+    "productAliasNameTranslated": "Carteles estándar (Papel)"
+  }
+}

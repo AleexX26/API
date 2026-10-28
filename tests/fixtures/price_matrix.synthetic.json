@@ -1,0 +1,22 @@
+[
+  {
+    "quantity": {"id": "fixture-quantity-1"},
+    "shipping_type": [
+      {
+        "delivery_days": "6",
+        "delivery_type": "fixture-standard",
+        "delivery_text_translated": "Entrega sintética de prueba",
+        "price": {
+          "quantity_value": 100,
+          "final_prices": {
+            "product_net_value": "100.10",
+            "total_net_value": "110.10",
+            "total_gross_value": "133.22",
+            "shipping_net": "10.00",
+            "total_vat": "23.12"
+          }
+        }
+      }
+    ]
+  }
+]

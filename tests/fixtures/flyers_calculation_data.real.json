@@ -1,0 +1,415 @@
+{
+ "itemMaster": {
+  "selectedProps": [
+   {
+    "id": "3765",
+    "name": "availability"
+   },
+   {
+    "id": "4560",
+    "name": "quality"
+   },
+   {
+    "id": "1015",
+    "name": "seiten"
+   },
+   {
+    "id": "222",
+    "name": "format"
+   },
+   {
+    "id": "6309",
+    "name": "aspect_ratio"
+   },
+   {
+    "id": "3783",
+    "name": "papier"
+   },
+   {
+    "id": "3774",
+    "name": "paper_desc"
+   },
+   {
+    "id": "4119",
+    "name": "paper_core"
+   },
+   {
+    "id": "115",
+    "name": "farben"
+   },
+   {
+    "id": "1197",
+    "name": "verarbeitung"
+   },
+   {
+    "id": "1209",
+    "name": "finishing"
+   },
+   {
+    "id": "14",
+    "name": "finishing_desc"
+   },
+   {
+    "id": "4016",
+    "name": "finishing_size"
+   },
+   {
+    "id": "1147",
+    "name": "Perforation"
+   },
+   {
+    "id": "1138",
+    "name": "Nutung"
+   },
+   {
+    "id": "823",
+    "name": "proofformat"
+   },
+   {
+    "id": "840",
+    "name": "proofpages"
+   },
+   {
+    "id": "6003",
+    "name": "accessories"
+   },
+   {
+    "id": "400",
+    "name": "quantity"
+   },
+   {
+    "id": "8673",
+    "name": "individualization"
+   },
+   {
+    "id": "9454",
+    "name": "individualization_desc"
+   },
+   {
+    "id": "27",
+    "name": "motive"
+   },
+   {
+    "id": "6400",
+    "name": "packing"
+   },
+   {
+    "id": "3764",
+    "name": "shipping_type"
+   }
+  ],
+  "deepLink": "item_group_id=9&delivery_country_code=ES&properties=3765|4560|1015|222|6309|3783|3774|4119|115|1197|1209|14|4016|1147|1138|823|840|6003|400|8673|9454|6400|3764&variants=27&product_alias_id=63"
+ },
+ "priceMatrix": [
+  {
+   "quantity": {
+    "id": "400",
+    "shipping_type": [
+     {
+      "id": "3764",
+      "delivery_days": 5,
+      "delivery_type": "standard",
+      "price": {
+       "currency": "EUR",
+       "quantity_heading": "100 Unidades",
+       "quantity_value": 100,
+       "price_from": "100 Unidades a partir de",
+       "shipping_labels": {
+        "incl_shipping": "incl. Envío",
+        "net_gross_incl_shipping": "Neto | Bruto incl. envío",
+        "incl_free_shipping": "Incl. IVA/Envío gratis",
+        "incl_tax_shipping": "IVA/Envío incluido",
+        "incl_tax_add_shipping": "Incl. IVA, más 5,95 € envío",
+        "net_gross_incl_tax": "Neto | Bruto con 21% IVA incluido | envío incluido a toda España"
+       },
+       "tax_labels": {
+        "incl_tax": "incl. IVA",
+        "incl_tax_value": "incl. 21% de IVA"
+       },
+       "final_prices": {
+        "product_net": "11,13 €",
+        "product_net_value": "11.13",
+        "product_gross": "13,47 €",
+        "shipping_net": "4,92 €",
+        "shipping_gross": "5,95 €",
+        "total_net": "16,05 €",
+        "total_gross": "19,42 €",
+        "total_vat": "3,37 €",
+        "total_net_value": "16.05",
+        "total_gross_value": "19.42"
+       },
+       "prices_unit_quantity": null,
+       "single_prices": {
+        "product_net": "0,11 €",
+        "product_gross": "0,13 €",
+        "total_net": "0,16 €",
+        "total_gross": "0,19 €"
+       },
+       "scratch_prices": null,
+       "chat_bot_required": false
+      },
+      "probabilities": {
+       "percent_earlier": "34.3",
+       "percent_later": "10.4",
+       "percent_earlier_formatted": "Antes 34,3%",
+       "percent_inside_formatted": "Miércoles 55,3%",
+       "percent_later_formatted": "Más tarde 10,4%"
+      },
+      "delivery_text_translated": "Entrega hasta Miércoles, 04.11.2026",
+      "delivery_text_calculation": "Estándar estimado para 04.11.",
+      "data_input_text_translated": "Siempre que los datos de impresión sean recibidos por 28.10.2026 12 hrs.."
+     },
+     {
+      "id": "3762",
+      "delivery_days": 4,
+      "delivery_type": "express",
+      "price": {
+       "currency": "EUR",
+       "quantity_heading": "100 Unidades",
+       "quantity_value": 100,
+       "price_from": "100 Unidades a partir de",
+       "shipping_labels": {
+        "incl_shipping": "incl. Envío",
+        "net_gross_incl_shipping": "Neto | Bruto incl. envío",
+        "incl_free_shipping": "Incl. IVA/Envío gratis",
+        "incl_tax_shipping": "IVA/Envío incluido",
+        "incl_tax_add_shipping": "Incl. IVA, más 10,95 € envío",
+        "net_gross_incl_tax": "Neto | Bruto con 21% IVA incluido | envío incluido a toda España"
+       },
+       "tax_labels": {
+        "incl_tax": "incl. IVA",
+        "incl_tax_value": "incl. 21% de IVA"
+       },
+       "final_prices": {
+        "product_net": "13,92 €",
+        "product_net_value": "13.92",
+        "product_gross": "16,84 €",
+        "shipping_net": "9,05 €",
+        "shipping_gross": "10,95 €",
+        "total_net": "22,97 €",
+        "total_gross": "27,79 €",
+        "total_vat": "4,82 €",
+        "total_net_value": "22.97",
+        "total_gross_value": "27.79"
+       },
+       "prices_unit_quantity": null,
+       "single_prices": {
+        "product_net": "0,14 €",
+        "product_gross": "0,17 €",
+        "total_net": "0,23 €",
+        "total_gross": "0,28 €"
+       },
+       "scratch_prices": null,
+       "chat_bot_required": false
+      },
+      "delivery_text_translated": "Entrega hasta Martes, 03.11.2026",
+      "delivery_text_calculation": "Exprés estimado para 03.11.",
+      "data_input_text_translated": "Siempre que los datos de impresión sean recibidos por 28.10.2026 12 hrs.."
+     },
+     {
+      "id": "3763",
+      "delivery_days": 1,
+      "delivery_type": "priority",
+      "price": {
+       "currency": "EUR",
+       "quantity_heading": "100 Unidades",
+       "quantity_value": 100,
+       "price_from": "100 Unidades a partir de",
+       "shipping_labels": {
+        "incl_shipping": "incl. Envío",
+        "net_gross_incl_shipping": "Neto | Bruto incl. envío",
+        "incl_free_shipping": "Incl. IVA/Envío gratis",
+        "incl_tax_shipping": "IVA/Envío incluido",
+        "incl_tax_add_shipping": "Incl. IVA, más 24,95 € envío",
+        "net_gross_incl_tax": "Neto | Bruto con 21% IVA incluido | envío incluido a toda España"
+       },
+       "tax_labels": {
+        "incl_tax": "incl. IVA",
+        "incl_tax_value": "incl. 21% de IVA"
+       },
+       "final_prices": {
+        "product_net": "15,59 €",
+        "product_net_value": "15.59",
+        "product_gross": "18,86 €",
+        "shipping_net": "20,62 €",
+        "shipping_gross": "24,95 €",
+        "total_net": "36,21 €",
+        "total_gross": "43,81 €",
+        "total_vat": "7,60 €",
+        "total_net_value": "36.21",
+        "total_gross_value": "43.81"
+       },
+       "prices_unit_quantity": null,
+       "single_prices": {
+        "product_net": "0,16 €",
+        "product_gross": "0,19 €",
+        "total_net": "0,36 €",
+        "total_gross": "0,44 €"
+       },
+       "scratch_prices": null,
+       "chat_bot_required": false
+      },
+      "delivery_text_translated": "Entrega hasta Jueves, 29.10.2026",
+      "delivery_text_calculation": "Prioridad estimado para 29.10.",
+      "data_input_text_translated": "Siempre que los datos de impresión sean recibidos por 28.10.2026 10 hrs.."
+     }
+    ]
+   }
+  },
+  {
+   "quantity": {
+    "id": "378",
+    "shipping_type": [
+     {
+      "id": "3764",
+      "delivery_days": 5,
+      "delivery_type": "standard",
+      "price": {
+       "currency": "EUR",
+       "quantity_heading": "125 Unidades",
+       "quantity_value": 125,
+       "price_from": "125 Unidades a partir de",
+       "shipping_labels": {
+        "incl_shipping": "incl. Envío",
+        "net_gross_incl_shipping": "Neto | Bruto incl. envío",
+        "incl_free_shipping": "Incl. IVA/Envío gratis",
+        "incl_tax_shipping": "IVA/Envío incluido",
+        "incl_tax_add_shipping": "Incl. IVA, más 5,95 € envío",
+        "net_gross_incl_tax": "Neto | Bruto con 21% IVA incluido | envío incluido a toda España"
+       },
+       "tax_labels": {
+        "incl_tax": "incl. IVA",
+        "incl_tax_value": "incl. 21% de IVA"
+       },
+       "final_prices": {
+        "product_net": "13,23 €",
+        "product_net_value": "13.23",
+        "product_gross": "16,01 €",
+        "shipping_net": "4,92 €",
+        "shipping_gross": "5,95 €",
+        "total_net": "18,15 €",
+        "total_gross": "21,96 €",
+        "total_vat": "3,81 €",
+        "total_net_value": "18.15",
+        "total_gross_value": "21.96"
+       },
+       "prices_unit_quantity": null,
+       "single_prices": {
+        "product_net": "0,11 €",
+        "product_gross": "0,13 €",
+        "total_net": "0,15 €",
+        "total_gross": "0,18 €"
+       },
+       "scratch_prices": null,
+       "chat_bot_required": false
+      },
+      "probabilities": {
+       "percent_earlier": "34.3",
+       "percent_later": "10.4",
+       "percent_earlier_formatted": "Antes 34,3%",
+       "percent_inside_formatted": "Miércoles 55,3%",
+       "percent_later_formatted": "Más tarde 10,4%"
+      },
+      "delivery_text_translated": "Entrega hasta Miércoles, 04.11.2026",
+      "delivery_text_calculation": "Estándar estimado para 04.11.",
+      "data_input_text_translated": "Siempre que los datos de impresión sean recibidos por 28.10.2026 12 hrs.."
+     },
+     {
+      "id": "3762",
+      "delivery_days": 4,
+      "delivery_type": "express",
+      "price": {
+       "currency": "EUR",
+       "quantity_heading": "125 Unidades",
+       "quantity_value": 125,
+       "price_from": "125 Unidades a partir de",
+       "shipping_labels": {
+        "incl_shipping": "incl. Envío",
+        "net_gross_incl_shipping": "Neto | Bruto incl. envío",
+        "incl_free_shipping": "Incl. IVA/Envío gratis",
+        "incl_tax_shipping": "IVA/Envío incluido",
+        "incl_tax_add_shipping": "Incl. IVA, más 10,95 € envío",
+        "net_gross_incl_tax": "Neto | Bruto con 21% IVA incluido | envío incluido a toda España"
+       },
+       "tax_labels": {
+        "incl_tax": "incl. IVA",
+        "incl_tax_value": "incl. 21% de IVA"
+       },
+       "final_prices": {
+        "product_net": "16,54 €",
+        "product_net_value": "16.54",
+        "product_gross": "20,01 €",
+        "shipping_net": "9,05 €",
+        "shipping_gross": "10,95 €",
+        "total_net": "25,59 €",
+        "total_gross": "30,96 €",
+        "total_vat": "5,37 €",
+        "total_net_value": "25.59",
+        "total_gross_value": "30.96"
+       },
+       "prices_unit_quantity": null,
+       "single_prices": {
+        "product_net": "0,13 €",
+        "product_gross": "0,16 €",
+        "total_net": "0,20 €",
+        "total_gross": "0,25 €"
+       },
+       "scratch_prices": null,
+       "chat_bot_required": false
+      },
+      "delivery_text_translated": "Entrega hasta Martes, 03.11.2026",
+      "delivery_text_calculation": "Exprés estimado para 03.11.",
+      "data_input_text_translated": "Siempre que los datos de impresión sean recibidos por 28.10.2026 12 hrs.."
+     },
+     {
+      "id": "3763",
+      "delivery_days": 1,
+      "delivery_type": "priority",
+      "price": {
+       "currency": "EUR",
+       "quantity_heading": "125 Unidades",
+       "quantity_value": 125,
+       "price_from": "125 Unidades a partir de",
+       "shipping_labels": {
+        "incl_shipping": "incl. Envío",
+        "net_gross_incl_shipping": "Neto | Bruto incl. envío",
+        "incl_free_shipping": "Incl. IVA/Envío gratis",
+        "incl_tax_shipping": "IVA/Envío incluido",
+        "incl_tax_add_shipping": "Incl. IVA, más 24,95 € envío",
+        "net_gross_incl_tax": "Neto | Bruto con 21% IVA incluido | envío incluido a toda España"
+       },
+       "tax_labels": {
+        "incl_tax": "incl. IVA",
+        "incl_tax_value": "incl. 21% de IVA"
+       },
+       "final_prices": {
+        "product_net": "18,52 €",
+        "product_net_value": "18.52",
+        "product_gross": "22,41 €",
+        "shipping_net": "20,62 €",
+        "shipping_gross": "24,95 €",
+        "total_net": "39,14 €",
+        "total_gross": "47,36 €",
+        "total_vat": "8,22 €",
+        "total_net_value": "39.14",
+        "total_gross_value": "47.36"
+       },
+       "prices_unit_quantity": null,
+       "single_prices": {
+        "product_net": "0,15 €",
+        "product_gross": "0,18 €",
+        "total_net": "0,31 €",
+        "total_gross": "0,38 €"
+       },
+       "scratch_prices": null,
+       "chat_bot_required": false
+      },
+      "delivery_text_translated": "Entrega hasta Jueves, 29.10.2026",
+      "delivery_text_calculation": "Prioridad estimado para 29.10.",
+      "data_input_text_translated": "Siempre que los datos de impresión sean recibidos por 28.10.2026 10 hrs.."
+     }
+    ]
+   }
+  }
+ ]
+}
