@@ -312,3 +312,41 @@ def test_card_form_adds_options_from_other_providers(tmp_path):
     assert "55 x 55 mm" in form["format"] and "4+4 tintas (CMYK)" in form["inks"]
     assert "240 g/m² Papel noble" in form["paper"] and not any("flyer" in x for x in form["paper"])
     assert "75 Unidades" in form["quantity"] and "33 Unidades" not in form["quantity"]
+
+
+def _flyer_catalog(tmp_path):
+    from app.collectors import offers as store
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t"}
+    for slug, size, paper in (("flyers-a5", "A5", "135 g/m² papel estucado"), ("flyers-a6", "A6", "170 g/m² papel estucado")):
+        store.replace_offers(db, "onlineprinters", f"https://www.onlineprinters.es/p/{slug}", f"Flyers {size}",
+                             [{**base, "quantity": 500, "kind": "total", "price": "30.00"}], "2026-10-27",
+                             [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}])
+    db.close()
+    return cat
+
+
+def test_product_form_lists_collected_options_and_filters(tmp_path):
+    from app.services.products import generic_matches, product_form
+    form = product_form(_flyer_catalog(tmp_path), "flyers")
+    groups = {g["name"]: g["options"] for g in form["groups"]}
+    assert "A5" in groups["Formato"] and sum("A6" in x for x in groups["Formato"]) == 1 and len(groups["Papel"]) == 2 and form["matched"] >= 2
+    entry = {"spec": [{"group": "Formato", "label": "A5"}, {"group": "Material", "label": "135 g/m² Papel estucado"}]}
+    assert generic_matches(entry, {"Formato": "A5", "Papel": "135 g/m² Papel estucado"})
+    assert not generic_matches(entry, {"Formato": "A6"}) and not generic_matches(entry, {"Perforación": "Sí"})
+
+
+def test_generic_strict_search_and_options_endpoint(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    cat = _flyer_catalog(tmp_path)
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, cat)) as client:
+        assert {g["name"] for g in client.get('/api/product-options', params={"q": "flyers"}).json()["groups"]} >= {"Formato", "Papel"}
+        assert client.get('/api/product-options', params={"q": "x"}).status_code == 422
+        brief = {**BRIEF, "query": "flyers", "strict": True, "generic": True, "filters": {"Formato": "A6"}}
+        found = {p["id"]: p["auto"] for p in client.post('/api/search', json={"brief": brief}).json()["providers"]}
+        assert [e["url"].rsplit("/", 1)[-1] for e in found["onlineprinters"]] == ["flyers-a6"]
+        brief["filters"] = {"Formato": "A3"}
+        assert all(p["auto"] == [] for p in client.post('/api/search', json={"brief": brief}).json()["providers"])

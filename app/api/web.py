@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.services.cards import CARD_KEYS, CARD_TYPES, card_form
+from app.services.products import product_form
 from app.services.workbench import IDS, PROVIDERS, catalog_listing, init_db, save_quote, search, valid_source
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -29,7 +30,9 @@ class Brief(BaseModel):
     max_days: int = Field(ge=1, le=180, default=30)
     country: Literal["ES"] = "ES"
     extras: dict[str, str] = Field(default_factory=dict, max_length=12)
-    strict: bool = False  # business-card form: show only products that meet every chosen characteristic
+    strict: bool = False  # characteristics form: show only products that meet every chosen characteristic
+    generic: bool = False  # strict form built from the collected pages (flyers, bags…) instead of the business-card one
+    filters: dict[str, str] = Field(default_factory=dict, max_length=16)
 
     @field_validator("extras")
     @classmethod
@@ -45,6 +48,17 @@ class Brief(BaseModel):
                 raise ValueError("Valor demasiado largo")
             if val:
                 clean[key] = val
+        return clean
+
+    @field_validator("filters")
+    @classmethod
+    def clean_filters(cls, value):
+        clean = {}
+        for key, val in value.items():
+            if len(key) > 60 or len(val) > 150:
+                raise ValueError("Filtro demasiado largo")
+            if val.strip():
+                clean[key.strip()] = val.strip()
         return clean
 
     @field_validator("query", "format", "material", "printing", "finishing")
@@ -130,6 +144,10 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
     @app.get("/api/card-options")
     def card_choices():
         return card_form(catalog)
+
+    @app.get("/api/product-options")
+    def product_choices(q: str = Query(..., min_length=2, max_length=100)):
+        return product_form(catalog, q)
 
     @app.post("/api/search")
     def find(data: SearchRequest):

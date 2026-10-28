@@ -229,9 +229,13 @@ def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db:
         auto = (auto_offers(catalog_db, set(), words, brief["quantity"], brief["max_days"]) if provider["id"] == "print24"
                 else other_offers(catalog_db, provider["id"], words, brief["quantity"], brief["max_days"]))
         dropped = 0
-        if brief.get("strict"):  # business-card form: only products that meet every chosen characteristic
-            from app.services.cards import entry_matches
-            kept = [e for e in auto if entry_matches(e, brief, provider["id"])]
+        if brief.get("strict"):  # characteristics form: only products that meet every chosen characteristic
+            if brief.get("generic"):
+                from app.services.products import generic_matches
+                kept = [e for e in auto if generic_matches(e, brief.get("filters") or {})]
+            else:
+                from app.services.cards import entry_matches
+                kept = [e for e in auto if entry_matches(e, brief, provider["id"])]
             dropped, auto = len(auto) - len(kept), kept
         result.append({**provider, "auto": auto[:12], "auto_matched": len(auto), "auto_filtered_out": dropped, "links": hits[:12], "matched_links": len(hits),
                        "indexed_links": len(entry.get("links", [])), "indexed_at": entry.get("fetched_at"),
