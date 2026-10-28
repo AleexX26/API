@@ -192,6 +192,18 @@ def terms_for(word: str) -> set[str]:
     return SYNONYMS.get(word, {word})
 
 
+STOPWORDS = {"de", "con", "para", "en", "y", "el", "la", "los", "las", "un", "una"}
+
+
+def general_rank(link: dict, words: list[str]) -> tuple:
+    """Sort key that puts the most general page first: its address says little more than what was searched
+    (onlineprinters.es/k/tarjetas-visita before .../tarjetas-visita-plegados-formato-horizontal), category pages first."""
+    path = urlsplit(link["url"]).path
+    slug = [w for w in re.findall(r"[a-z0-9]+", normalize(path.rstrip("/").rsplit("/", 1)[-1])) if w not in STOPWORDS]
+    extra = sum(1 for w in slug if not any(term in w for word in words for term in SYNONYMS.get(word, {word})))
+    return (extra, 0 if re.search(r"/(k|c|categoria)/", path) else 1, len(slug))
+
+
 def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db: Path | None = None) -> dict:
     catalog = json.loads(seed.read_text(encoding="utf-8")) if seed.exists() else {"providers": {}}
     words = re.findall(r"\w+", normalize(brief["query"]))
@@ -210,6 +222,7 @@ def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db:
             text = normalize(link["title"] + " " + link["url"])
             if words and all(any(term in text for term in synonyms.get(word, {word})) for word in words):
                 hits.append(link)
+        hits.sort(key=lambda link: general_rank(link, words))
         quotes = []
         latest_sources = set()
         for row in rows:
@@ -237,7 +250,7 @@ def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db:
                 from app.services.cards import entry_matches
                 kept = [e for e in auto if entry_matches(e, brief, provider["id"])]
             dropped, auto = len(auto) - len(kept), kept
-        result.append({**provider, "auto": auto[:12], "auto_matched": len(auto), "auto_filtered_out": dropped, "links": hits[:12], "matched_links": len(hits),
+        result.append({**provider, "auto": auto[:12], "auto_matched": len(auto), "auto_filtered_out": dropped, "links": hits[:30], "matched_links": len(hits),
                        "indexed_links": len(entry.get("links", [])), "indexed_at": entry.get("fetched_at"),
                        "index_status": entry.get("status", "not_indexed"), "quotes": quotes, "best": best})
     comparable = [p for p in result if p["best"] is not None]

@@ -365,3 +365,12 @@ def test_lan_mode_is_read_only_for_other_computers(tmp_path):
     assert other.post('/api/quotes', json={}).status_code == 403 and "lectura" in other.post('/api/quotes', json={}).json()["detail"]
     assert outside.get('/api/providers').status_code == 403
     assert local.get('/api/providers').status_code == 400  # default mode still rejects other host names
+
+
+def test_general_page_goes_first():
+    from app.services.workbench import general_rank
+    words = ["tarjetas", "de", "visita"]
+    links = [{"url": "https://www.onlineprinters.es/p/muestras-de-tarjetas-de-visita"},
+             {"url": "https://www.onlineprinters.es/k/tarjetas-visita-plegados-formato-horizontal"},
+             {"url": "https://www.onlineprinters.es/k/tarjetas-visita"}]
+    assert sorted(links, key=lambda l: general_rank(l, words))[0]["url"].endswith("/k/tarjetas-visita")
