@@ -79,7 +79,7 @@ def print24_entry(db: sqlite3.Connection, configuration_id: str, title: str, url
         offers.append(o)
     offers.sort(key=lambda o: (o["quantity"], Decimal(o["total_net"])))
     exact = [o for o in offers if o["quantity"] == quantity and o["meets_deadline"]]
-    return {"title": title, "url": url, "fetched_at": fetched_at, "spec": spec, "offers": offers,
+    return {"title": title, "url": url, "fetched_at": fetched_at, "spec": spec, "offers": offers, "tax_status": "net",
             "quantities": sorted({o["quantity"] for o in offers}), "matches_quantity": bool(exact),
             "suggested": min(exact, key=lambda o: Decimal(o["total_net"])) if exact else None}
 
