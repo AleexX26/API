@@ -16,7 +16,7 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Comandos
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q --basetemp .test-runs/N` (N nuevo cada vez).
-- Web: `Abrir comparador.cmd` o `python web_server.py --open`.
+- Web: `Abrir comparador.cmd` o `python web_server.py --open`. Para compartirlo con la misma red (solo lectura para los demás PC; solo el PC anfitrión guarda presupuestos): `Abrir comparador para la oficina.cmd` (`--lan`, escucha en 0.0.0.0:8765, muestra el enlace con la IP; Windows pide permiso de Firewall en redes privadas).
 - Print24: `python -m app.collectors.sitemaps`, luego `python -m app.collectors.products` (171 productos, ~15 min), luego `python -m app.collectors.specs`.
 - Otros: `python -m app.collectors.<tuskamisetas|onlineprinters|printai> URL…`; Onlineprinters entero: `python -m app.collectors.onlineprinters` (usa el sitemap en caché).
 - Variaciones Print24 (navegador, entorno aparte `.venv-browser` con scrapling+playwright+Chromium, 719 MB en `%LOCALAPPDATA%\ms-playwright`): `.venv-browser\Scripts\python.exe -m app.collectors.variants --max-variations 3 URL`.

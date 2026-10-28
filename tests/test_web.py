@@ -350,3 +350,18 @@ def test_generic_strict_search_and_options_endpoint(tmp_path):
         assert [e["url"].rsplit("/", 1)[-1] for e in found["onlineprinters"]] == ["flyers-a6"]
         brief["filters"] = {"Formato": "A3"}
         assert all(p["auto"] == [] for p in client.post('/api/search', json={"brief": brief}).json()["providers"])
+
+
+def test_lan_mode_is_read_only_for_other_computers(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    other = TestClient(create_app(tmp_path / "w.sqlite3", seed, cat, lan=True), client=("192.168.1.50", 5000), base_url="http://192.168.1.10:8765")
+    outside = TestClient(create_app(tmp_path / "w2.sqlite3", seed, cat, lan=True), client=("8.8.8.8", 5000), base_url="http://192.168.1.10:8765")
+    local = TestClient(create_app(tmp_path / "w3.sqlite3", seed, cat), base_url="http://192.168.1.10:8765")
+    assert other.get('/api/providers').status_code == 200
+    assert other.post('/api/search', json={"brief": BRIEF}, headers={"origin": "http://192.168.1.10:8765"}).status_code == 200
+    assert other.post('/api/quotes', json={}).status_code == 403 and "lectura" in other.post('/api/quotes', json={}).json()["detail"]
+    assert outside.get('/api/providers').status_code == 403
+    assert local.get('/api/providers').status_code == 400  # default mode still rejects other host names

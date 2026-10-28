@@ -1,4 +1,5 @@
 """Local-only supplier workspace. No background network activity."""
+import ipaddress
 import json
 import os
 from datetime import date
@@ -95,21 +96,38 @@ class QuoteRequest(BaseModel):
     confirmed_equivalent: Literal[True]
 
 
-def create_app(database: Path | None = None, seed: Path | None = None, catalog: Path | None = None) -> FastAPI:
+LOOPBACK = ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+def private_client(host: str | None) -> bool:
+    try:
+        return ipaddress.ip_address(host or "").is_private
+    except ValueError:
+        return host in LOOPBACK
+
+
+def create_app(database: Path | None = None, seed: Path | None = None, catalog: Path | None = None, lan: bool = False) -> FastAPI:
+    """lan=True also serves the other computers of the private network, read-only (only this PC saves quotes)."""
     if catalog is None and database is None:
         catalog = Path(os.environ.get("PRINT_CATALOG_DB", ROOT / "data/catalog.sqlite3"))  # tests pass explicit paths
     database = database or Path(os.environ.get("PRINT_WORKBENCH_DB", ROOT / "data/workbench.sqlite3"))
     seed = seed or ROOT / "data/catalog_links.json"
     init_db(database)
     app = FastAPI(title="Mesa de impresión", docs_url="/api/docs")
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"] if lan else ["127.0.0.1", "localhost", "testserver"])
 
     @app.middleware("http")
     async def local_write_guard(request: Request, call_next):
+        client = request.client.host if request.client else None
+        if lan and not private_client(client):
+            return JSONResponse({"detail": "Solo la red local"}, status_code=403)
         if request.method == "POST":
             origin = request.headers.get("origin")
-            if origin and origin not in ("http://127.0.0.1:8765", "http://localhost:8765"):
+            same = ("http://127.0.0.1:8765", "http://localhost:8765") + ((f"http://{request.headers.get('host')}",) if lan else ())
+            if origin and origin not in same:
                 return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
+            if lan and request.url.path == "/api/quotes" and client not in LOOPBACK:
+                return JSONResponse({"detail": "Solo lectura: los presupuestos se guardan desde el PC que aloja el comparador"}, status_code=403)
             if request.headers.get("content-type", "").split(";")[0] != "application/json":
                 return JSONResponse({"detail": "Se requiere JSON"}, status_code=415)
         response = await call_next(request)
