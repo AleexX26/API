@@ -374,3 +374,24 @@ def test_general_page_goes_first():
              {"url": "https://www.onlineprinters.es/k/tarjetas-visita-plegados-formato-horizontal"},
              {"url": "https://www.onlineprinters.es/k/tarjetas-visita"}]
     assert sorted(links, key=lambda l: general_rank(l, words))[0]["url"].endswith("/k/tarjetas-visita")
+
+
+def test_search_words_ignore_little_words_and_plurals():
+    from app.services.workbench import query_words, terms_for
+    assert query_words("Tarjetas de Visita") == ["tarjetas", "visita"]
+    assert "visita" in terms_for("visitas") and "flyer" in terms_for("folletos") and "cartel" in terms_for("carteles")
+    assert "playera" in terms_for("camiseta")
+
+
+def test_catalog_returns_general_page_and_suggestions(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {"onlineprinters": {"links": [
+        {"title": "Tarjetas de visita plegables horizontal", "url": "https://www.onlineprinters.es/k/tarjetas-visita-plegables-horizontal"},
+        {"title": "Tarjetas de visita", "url": "https://www.onlineprinters.es/k/tarjetas-visita"}]}}}))
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, cat)) as client:
+        general = client.get('/api/catalog', params={"q": "tarjetas de visita"}).json()["general"]
+        assert general["onlineprinters"]["url"].endswith("/k/tarjetas-visita") and general["stricker"] is None
+        terms = {t["term"]: t["count"] for t in client.get('/api/suggestions').json()["terms"]}
+        assert terms.get("tarjetas de visita", 0) >= 2

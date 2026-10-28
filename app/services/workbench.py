@@ -183,16 +183,29 @@ def other_offers(catalog: Path | None, provider: str, words: list[str], quantity
     return result
 
 
-SYNONYMS = {"flyer": {"flyer", "flyers", "folleto", "folletos"},
-            "flyers": {"flyer", "flyers", "folleto", "folletos"},
-            "camisetas": {"camisetas", "camiseta"}, "tarjetas": {"tarjetas", "tarjeta"}}
+SYNONYM_GROUPS = [{"flyer", "folleto", "octavilla"}, {"camiseta", "playera"}, {"pegatina", "adhesivo"}, {"cartel", "poster"},
+                  {"taza", "mug"}, {"sudadera", "hoodie"}]
+STOPWORDS = {"de", "del", "con", "para", "en", "y", "el", "la", "los", "las", "un", "una", "por", "a"}
+
+
+def query_words(text: str) -> list[str]:
+    """The words of a search without the little ones ('tarjetas de visita' -> tarjetas, visita)."""
+    return [w for w in re.findall(r"\w+", normalize(text)) if w not in STOPWORDS]
 
 
 def terms_for(word: str) -> set[str]:
-    return SYNONYMS.get(word, {word})
-
-
-STOPWORDS = {"de", "con", "para", "en", "y", "el", "la", "los", "las", "un", "una"}
+    """What a searched word may look like in a product name: singular/plural and a few real synonyms
+    (flyer = folleto, camiseta = playera). Names are matched by containment, so 'flyer' also finds 'flyers'."""
+    stems = {word}
+    if len(word) > 5 and word.endswith("es"):
+        stems |= {word[:-2], word[:-1]}
+    elif len(word) > 3 and word.endswith("s"):
+        stems.add(word[:-1])
+    terms = set(stems)
+    for group in SYNONYM_GROUPS:
+        if stems & group:
+            terms |= group
+    return terms
 
 
 def general_rank(link: dict, words: list[str]) -> tuple:
@@ -200,14 +213,13 @@ def general_rank(link: dict, words: list[str]) -> tuple:
     (onlineprinters.es/k/tarjetas-visita before .../tarjetas-visita-plegados-formato-horizontal), category pages first."""
     path = urlsplit(link["url"]).path
     slug = [w for w in re.findall(r"[a-z0-9]+", normalize(path.rstrip("/").rsplit("/", 1)[-1])) if w not in STOPWORDS]
-    extra = sum(1 for w in slug if not any(term in w for word in words for term in SYNONYMS.get(word, {word})))
+    extra = sum(1 for w in slug if not any(term in w for word in words for term in terms_for(word)))
     return (extra, 0 if re.search(r"/(k|c|categoria)/", path) else 1, len(slug))
 
 
 def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db: Path | None = None) -> dict:
     catalog = json.loads(seed.read_text(encoding="utf-8")) if seed.exists() else {"providers": {}}
-    words = re.findall(r"\w+", normalize(brief["query"]))
-    synonyms = SYNONYMS
+    words = query_words(brief["query"])
     today = datetime.now(timezone.utc).date().isoformat()
     with sqlite3.connect(path) as db:
         db.row_factory = sqlite3.Row
@@ -220,7 +232,7 @@ def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db:
         hits = []
         for link in entry.get("links", []):
             text = normalize(link["title"] + " " + link["url"])
-            if words and all(any(term in text for term in synonyms.get(word, {word})) for word in words):
+            if words and all(any(term in text for term in terms_for(word)) for word in words):
                 hits.append(link)
         hits.sort(key=lambda link: general_rank(link, words))
         quotes = []
@@ -315,7 +327,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
     for item in items:
         counts[item["provider"]] = counts.get(item["provider"], 0) + 1
         item["provider_name"] = names.get(item["provider"], item["provider"])
-    words = re.findall(r"\w+", normalize(q))
+    words = query_words(q)
     if cards is not None:  # business-card form: only business cards that meet every chosen characteristic
         from app.services.cards import entry_matches
         items = [i for i in items if (lambda t: "tarjeta" in t and "visita" in t)(normalize(i["title"] + " " + i["url"]))]
@@ -332,3 +344,39 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
             chosen.append(item)
     chosen.sort(key=lambda i: (order.get(i["provider"], 99), i["title"]))
     return {"total": len(chosen), "items": chosen[offset:offset + limit], "counts": counts}
+
+
+def general_links(seed: Path, q: str) -> dict:
+    """For each provider, its most general page for the searched product (from the public link index), or None."""
+    words = query_words(q)
+    found = {p["id"]: None for p in PROVIDERS}
+    if not words or not seed.exists():
+        return found
+    catalog = json.loads(seed.read_text(encoding="utf-8")).get("providers", {})
+    for provider in PROVIDERS:
+        hits = [link for link in catalog.get(provider["id"], {}).get("links", [])
+                if all(any(t in normalize(link["title"] + " " + link["url"]) for t in terms_for(w)) for w in words)]
+        if hits:
+            best = min(hits, key=lambda link: general_rank(link, words))
+            found[provider["id"]] = {"url": best["url"], "title": best["title"]}
+    return found
+
+
+SUGGEST_TERMS = ["tarjetas de visita", "flyers", "folletos", "carteles", "camisetas", "sudaderas", "bolsas", "tazas", "pegatinas", "sobres",
+                 "carpetas", "catálogos", "revistas", "calendarios", "lonas", "banners", "roll-up", "etiquetas", "posavasos", "gorras",
+                 "delantales", "bolígrafos", "tarjetas postales", "invitaciones"]
+
+
+def suggestions(catalog: Path | None, seed: Path) -> list[dict]:
+    """Products worth typing: the usual terms that match something we have, with how many pages match."""
+    texts = [normalize(i["title"] + " " + i["url"]) for i in catalog_listing(catalog, None, "", 100000)["items"]]
+    if seed.exists():
+        for entry in json.loads(seed.read_text(encoding="utf-8")).get("providers", {}).values():
+            texts += [normalize(link["title"] + " " + link["url"]) for link in entry.get("links", [])]
+    found = []
+    for term in SUGGEST_TERMS:
+        words = query_words(term)
+        count = sum(1 for t in texts if all(any(x in t for x in terms_for(w)) for w in words))
+        if count:
+            found.append({"term": term, "count": count})
+    return sorted(found, key=lambda x: -x["count"])

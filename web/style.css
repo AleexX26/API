@@ -29,3 +29,6 @@ label select+input{margin-top:6px}
 #card-form .auto-note{margin:10px 2px 0}
 .auto-more-products{margin:8px 0}.auto-more-products>summary{cursor:pointer;font-weight:700;color:var(--teal);font-size:13px;padding:6px 0}.auto-more-products[open]>summary{margin-bottom:6px}
 .catalog-sub{width:100%;border-collapse:collapse;margin-top:4px}.catalog-sub td{padding:8px 10px;border-top:1px solid var(--line,#e5e7e2)}.more-row>td{padding:0 10px 8px}
+.catalog-search{display:flex;align-items:center;gap:10px;margin:14px 0 8px;padding:6px 8px 6px 14px;background:#fff;border:1px solid var(--border);border-radius:12px}.catalog-search input{flex:1;min-width:0;border:0;outline:0;font-size:17px;padding:10px 4px;background:transparent}.catalog-search .search-icon{font-size:20px;color:var(--muted)}
+#cat-chips{margin:0 0 6px}
+.brand-block{margin:14px 0 22px;padding:14px 16px;background:#fff;border:1px solid var(--border);border-radius:12px}.brand-block .comparison-box{margin:8px 0}.brand-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.brand-head strong{font-size:18px}.go-button{margin-left:auto;padding:10px 16px;border-radius:9px;background:var(--teal);color:#fff;font-weight:700;text-decoration:none}.go-button:hover{filter:brightness(1.1)}

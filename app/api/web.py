@@ -15,7 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.services.cards import CARD_KEYS, CARD_TYPES, card_form
 from app.services.products import product_form
-from app.services.workbench import IDS, PROVIDERS, catalog_listing, init_db, save_quote, search, valid_source
+from app.services.workbench import IDS, PROVIDERS, catalog_listing, general_links, init_db, save_quote, search, suggestions, valid_source
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -157,7 +157,13 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
                 brief = Brief(query="tarjetas de visita", quantity=1, **data).model_dump()
             except (ValueError, TypeError):
                 raise HTTPException(422, "Filtros de tarjetas no válidos")
-        return catalog_listing(catalog, provider or None, q, limit, offset, brief)
+        data = catalog_listing(catalog, provider or None, q, limit, offset, brief)
+        data["general"] = general_links(seed, q)
+        return data
+
+    @app.get("/api/suggestions")
+    def suggest():
+        return {"terms": suggestions(catalog, seed)}
 
     @app.get("/api/card-options")
     def card_choices():
