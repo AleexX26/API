@@ -36,6 +36,8 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 - 2026-10-27: los precios automáticos son solo referencia: no entran en el ranking de «más barato» hasta que el usuario confirma equivalencia («Usar» → presupuesto).
 - 2026-10-27: solo se recoge la configuración por defecto de cada producto (cobertura elegida por el usuario). Print24 trae opciones y matriz en el HTML (Next.js), sin llamar a su API.
 - 2026-10-27: TusKamisetas tiene 15.593 productos (≈21 h a 5 s): no se lanza entero sin acotar categorías. Onlineprinters 1.907 (≈2,7 h). Printai ~1.011 URLs multi-idioma.
+- 2026-10-28: las opciones del formulario de tarjetas ya no son solo de Print24: `card_form` suma formatos, papeles, tintas y cantidades de las tarjetas recogidas de los demás proveedores (`add_other_providers` en `cards.py`), sin duplicar (mismo formato/gramaje+familia/tintas). Prueba, individualización, diseños y empaquetado siguen siendo solo de Print24.
+- 2026-10-28: Truyol no estaba bloqueado: el error TLS era que Python no conoce la raíz de Sectigo. `fetch_cached` usa ahora la lista de `certifi` (la verificación sigue activa). Su robots.txt solo prohíbe `/files/` y `*.pdf`. Cada ficha trae opciones (cantidad, formato, papel, caras, plastificado) y un único precio estático en JSON-LD; el precio por cantidad lo calcula su JavaScript (aún sin estudiar).
 - 2026-10-27: Stricker no publica precios sin cuenta de revendedor; Truyol falla por un certificado autofirmado en su cadena TLS.
 - 2026-10-27: el comparador web es el objetivo principal; WooCommerce es posterior.
 

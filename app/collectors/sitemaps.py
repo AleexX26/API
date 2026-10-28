@@ -7,11 +7,14 @@ window makes no request. Any error stops the run (nothing is skipped silently).
 import hashlib
 import json
 import sqlite3
+import ssl
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.request import Request, build_opener
+from urllib.request import HTTPSHandler, Request, build_opener
 from xml.etree import ElementTree
+
+import certifi
 
 from app.collectors.discovery import AGENT, ORIGIN, NoRedirect, allowed, spanish_url
 
@@ -70,7 +73,9 @@ def fetch_cached(url: str, cache_file: Path, now: datetime, state: dict, max_age
     if state.get("requests"):
         time.sleep(PAUSE)
     state["requests"] = state.get("requests", 0) + 1
-    with build_opener(NoRedirect()).open(Request(url, headers={"User-Agent": AGENT}), timeout=60) as response:
+    # certificates are always verified; certifi's list also knows roots (Sectigo R46, Truyol) missing from some Python installs
+    context = ssl.create_default_context(cafile=certifi.where())
+    with build_opener(NoRedirect(), HTTPSHandler(context=context)).open(Request(url, headers={"User-Agent": AGENT}), timeout=60) as response:
         content_type = response.headers.get("Content-Type", "").lower()
         raw = response.read(LIMIT + 1)
         status = response.status

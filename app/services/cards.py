@@ -3,12 +3,14 @@
 The option lists come from the Print24 page already in the cache (no new requests). Print24 only has prices for
 the default configuration of each page we collected, so a filter that asks for another option finds no price.
 """
+import json
 import re
+import sqlite3
 from pathlib import Path
 
 from app.parsers.price_matrix import MatrixError
 from app.parsers.product_page import calculation_data
-from app.services.workbench import normalize
+from app.services.workbench import enrich_spec, normalize
 
 CARD_CACHE = "cache/products/productos-impresion__tarjetas-de-visita.html"
 PRINT24_GROUPS = {"seiten": "pages", "format": "format", "aspect_ratio": "orientation", "papier": "paper",
@@ -47,7 +49,64 @@ def card_form(catalog: Path | None) -> dict:
                     label = " ".join(part.strip() for part in prop["propertyTranslated"] if part and part.strip())
                     if label and label not in form[key]:
                         form[key].append(label)
+    add_other_providers(catalog, form)
     return {"types": list(CARD_TYPES), **form}
+
+
+FAMILY_LABEL = {"estucado": "Papel estucado", "offset": "Offset", "carton": "Cartón", "reciclado": "Reciclado", "noble": "Papel noble",
+                "luxecore": "Luxecore", "kraft": "Papel kraft", "hierba": "Papel de hierba", "natural": "Papel natural"}
+
+
+def paper_key(label: str) -> tuple:
+    text = normalize(label)
+    grams = tuple(sorted(grams_in(text)))
+    family = next((f for f, terms in PAPER_FAMILIES.items() if any(t in text for t in terms)), "")
+    return (grams, family) if grams else ((), text)
+
+
+def other_cards(catalog: Path | None) -> list[dict]:
+    """The business cards collected from the providers other than Print24: url, spec (with format/printing read from
+    the address) and the quantities that have a price."""
+    if catalog is None or not Path(catalog).exists():
+        return []
+    db = sqlite3.connect(f"file:{Path(catalog).as_posix()}?mode=ro", uri=True)
+    try:
+        rows = db.execute("SELECT product_url, product_name, spec_json, group_concat(DISTINCT quantity) FROM supplier_offers GROUP BY product_url").fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        db.close()
+    found = []
+    for url, name, spec, quantities in rows:
+        text = normalize(f"{name} {url}")
+        if "tarjeta" in text and "visita" in text:
+            found.append({"spec": enrich_spec(json.loads(spec), url), "quantities": [int(q) for q in str(quantities).split(",") if q]})
+    return found
+
+
+def add_other_providers(catalog: Path | None, form: dict) -> None:
+    """Add to Print24's option lists what the other providers' business cards offer (sizes, papers, inks, quantities)."""
+    cards = other_cards(catalog)
+    for card in cards:
+        for item in card["spec"]:
+            group, label = normalize(item["group"]), item["label"].strip()
+            if group in ("formato", "tamano"):
+                for w, h in sorted(sizes_in(label), key=lambda s: -s[0])[:1]:
+                    if not any(sizes_in(x) & {(w, h)} for x in form["format"]):
+                        form["format"].append(f"{w} x {h} mm")
+            elif group in ("papel", "material"):
+                key = paper_key(label)
+                if not any(paper_key(x) == key for x in form["paper"]):
+                    grams, family = key if key[0] else ((), "")
+                    form["paper"].append(f"{grams[0]} g/m² {FAMILY_LABEL[family]}" if grams and family else label)
+            elif group in ("impresion", "caras impresion"):
+                for pair in sorted(inks_in(normalize(label))):
+                    if not any(pair in inks_in(x) for x in form["inks"]):
+                        form["inks"].append(f"{pair} tintas (CMYK)")
+    have = {int(m.group(1)) for x in form["quantity"] if (m := re.match(r"(\d+)", x))}
+    for card in cards:
+        have |= set(card["quantities"])
+    form["quantity"] = [f"{n} Unidad" + ("" if n == 1 else "es") for n in sorted(have)]
 
 
 def sizes_in(text: str) -> set[tuple[int, int]]:

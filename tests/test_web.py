@@ -294,3 +294,21 @@ def test_catalog_card_filter_keeps_only_matching_business_cards(tmp_path):
         assert [i for i in ask(format="90 x 50 mm").json()['items'] if i['provider'] == 'onlineprinters'] == []
         assert client.get('/api/catalog', params={"cards": "no json"}).status_code == 422
         assert client.get('/api/catalog', params={"cards": json.dumps({"extras": {"raro": "x"}})}).status_code == 422
+
+
+def test_card_form_adds_options_from_other_providers(tmp_path):
+    from app.collectors import offers as store
+    from app.services.cards import card_form
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t"}
+    store.replace_offers(db, "onlineprinters", "https://www.onlineprinters.es/p/tarjetas-visita-4-4-55x55mm", "Tarjetas de visita",
+                         [{**base, "quantity": 75, "kind": "total", "price": "20.00"}], "2026-10-27", [{"group": "Papel", "label": "240 g/m² Rococo (Gmund) FSC mix"}])
+    store.replace_offers(db, "onlineprinters", "https://www.onlineprinters.es/p/flyers-a5", "Flyers",
+                         [{**base, "quantity": 33, "kind": "total", "price": "20.00"}], "2026-10-27", [{"group": "Papel", "label": "90 g/m² flyer"}])
+    db.close()
+    form = card_form(cat)
+    assert "55 x 55 mm" in form["format"] and "4+4 tintas (CMYK)" in form["inks"]
+    assert "240 g/m² Papel noble" in form["paper"] and not any("flyer" in x for x in form["paper"])
+    assert "75 Unidades" in form["quantity"] and "33 Unidades" not in form["quantity"]
