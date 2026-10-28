@@ -18,6 +18,7 @@ PROVIDERS = [
     {"id": "tuskamisetas", "name": "TusKamisetas", "url": "https://www.tuskamisetas.com/es", "initials": "TK", "specialty": "Textil y personalización"},
 ]
 IDS = {p["id"] for p in PROVIDERS}
+IVA = Decimal("1.21")  # Spanish VAT 21%: prices read as net are shown with it added
 
 
 def normalize(value: str) -> str:
@@ -314,7 +315,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
                     variants = 0
                 cheapest = min(prices, key=lambda x: x[1])
                 items.append({"provider": "print24", "title": page["url"].rstrip("/").rsplit("/", 1)[1].replace("-", " ").capitalize(),
-                              "url": page["url"], "price_kind": "total", "from_price": str(cheapest[1]), "from_quantity": cheapest[0],
+                              "url": page["url"], "price_kind": "total", "tax_status": "net", "from_price": str(cheapest[1]), "from_quantity": cheapest[0],
                               "min_quantity": min(p[0] for p in prices), "max_quantity": max(p[0] for p in prices),
                               "tiers": len({p[0] for p in prices}), "variants": variants, "prices": [[q, str(t)] for q, t in prices],
                               "observed_at": page["fetched_at"], "spec": specs.get(page["url"], [])})
@@ -327,7 +328,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
             for (prov, url, group, variant), rows in groups.items():
                 best = min(rows, key=lambda r: Decimal(r["price"]))
                 items.append({"provider": prov, "title": rows[0]["product_name"] + (f" · {variant}" if variant else ""), "url": url,
-                              "price_kind": rows[0]["price_kind"], "from_price": best["price"], "from_quantity": best["quantity"],
+                              "price_kind": rows[0]["price_kind"], "tax_status": rows[0]["tax_status"], "from_price": best["price"], "from_quantity": best["quantity"],
                               "min_quantity": min(r["quantity"] for r in rows), "max_quantity": max(r["quantity"] for r in rows),
                               "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"], "prices": [[r["quantity"], r["price"]] for r in rows],
                               "spec": json.loads(rows[0]["spec_json"])})

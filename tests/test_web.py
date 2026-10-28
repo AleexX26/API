@@ -406,14 +406,15 @@ def test_catalog_words_understand_sizes_and_weights():
 
 def test_compare_puts_providers_side_by_side_and_marks_cheapest():
     from app.services.compare import compare
-    def item(provider, title, spec, prices, kind="total"):
-        return {"provider": provider, "title": title, "url": f"https://{provider}.test/{title}", "spec": spec, "price_kind": kind, "prices": prices}
+    def item(provider, title, spec, prices, kind="total", tax="net"):
+        return {"provider": provider, "title": title, "url": f"https://{provider}.test/{title}", "spec": spec, "price_kind": kind, "prices": prices, "tax_status": tax}
     base = [{"group": "Formato", "label": "85 x 55 mm"}, {"group": "Papel", "label": "350 g/m² papel estucado"}, {"group": "Páginas", "label": "1 cara"}]
     items = [item("print24", "a", base, [[500, "30.00"]]), item("onlineprinters", "b", base, [[500, "25.00"]]),
              item("printai", "c", base, [[100, "10.00"]]), item("truyol", "d", [], [[500, "5.00"]]),
-             item("tuskamisetas", "e", base, [[500, "0.04"]], kind="unit")]
+             item("tuskamisetas", "e", base, [[500, "0.04"]], kind="unit", tax="unknown")]
     out = compare(items, 500)
     row = out["rows"][0]
     assert row["label"] == "85 × 55 mm · 350 g/m² · 1 cara" and set(row["cells"]) == {"print24", "onlineprinters", "tuskamisetas"}
-    assert row["cheapest"] == "tuskamisetas" and row["cells"]["tuskamisetas"]["estimated"] and out["skipped"] == 2
+    assert row["cheapest"] == "onlineprinters"  # the unknown-VAT price (20 €) is shown but never marked cheapest
+    assert row["cells"]["tuskamisetas"]["estimated"] and row["cells"]["tuskamisetas"]["tax_status"] == "unknown" and out["skipped"] == 2
     assert row["cells"]["tuskamisetas"]["total"] == "20.00"

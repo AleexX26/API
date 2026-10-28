@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from app.services.cards import grams_in, sides_in, sizes_in
 from app.services.products import DIN
-from app.services.workbench import PROVIDERS, normalize
+from app.services.workbench import IVA, PROVIDERS, normalize
 
 SIZE_GROUPS = ("formato", "tamano", "medidas")
 PAPER_GROUPS = ("papel", "material", "soporte", "elige el papel")
@@ -54,6 +54,11 @@ def price_at(item: dict, quantity: int) -> tuple[Decimal, bool] | None:
     return None
 
 
+def gross(total: Decimal, tax: str) -> Decimal | None:
+    """Total with 21% VAT: net prices get it added, gross ones stay, unknown ones cannot be compared."""
+    return total * IVA if tax == "net" else total if tax == "gross" else None
+
+
 def compare(items: list[dict], quantity: int) -> dict:
     rows: dict[tuple, dict] = {}
     skipped = 0
@@ -69,14 +74,17 @@ def compare(items: list[dict], quantity: int) -> dict:
         side = next(iter(sides)) if len(sides) == 1 else 0
         row = rows.setdefault((size, grams, side), {"size": f"{size[0]} × {size[1]} mm", "grams": grams, "sides": side, "cells": {}})
         cell = row["cells"].get(item["provider"])
+        tax = item.get("tax_status", "unknown")
         if cell is None or priced[0] < Decimal(cell["total"]):
-            row["cells"][item["provider"]] = {"total": str(priced[0]), "estimated": priced[1], "title": item["title"], "url": item["url"]}
+            row["cells"][item["provider"]] = {"total": str(priced[0]), "estimated": priced[1], "tax_status": tax, "title": item["title"], "url": item["url"]}
     order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
     out = []
     for row in rows.values():
-        cheapest = min(row["cells"], key=lambda p: Decimal(row["cells"][p]["total"]))
+        known = {p: gross(Decimal(c["total"]), c["tax_status"]) for p, c in row["cells"].items()}
+        known = {p: v for p, v in known.items() if v is not None}  # a price with unknown VAT is shown but never marked cheapest
+        cheapest = min(known, key=known.get) if len(known) > 1 else None
         sides = {1: " · 1 cara", 2: " · 2 caras"}.get(row["sides"], "")
-        out.append({"label": f"{row['size']} · {row['grams']} g/m²{sides}", "cells": row["cells"], "cheapest": cheapest if len(row["cells"]) > 1 else None,
+        out.append({"label": f"{row['size']} · {row['grams']} g/m²{sides}", "cells": row["cells"], "cheapest": cheapest,
                     "providers": len(row["cells"])})
     out.sort(key=lambda r: (-r["providers"], min(Decimal(c["total"]) for c in r["cells"].values())))
     used = sorted({p for r in out for p in r["cells"]}, key=lambda p: order.get(p, 99))
