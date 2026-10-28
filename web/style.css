@@ -27,3 +27,4 @@ label select+input{margin-top:6px}
 .card-group{border:1px solid var(--border);border-radius:12px;margin:14px 0 0;padding:6px 16px 14px}
 .card-group legend{padding:0 8px;font-size:.8rem;font-weight:600;color:var(--muted)}
 #card-form .auto-note{margin:10px 2px 0}
+.auto-more-products{margin:8px 0}.auto-more-products>summary{cursor:pointer;font-weight:700;color:var(--teal);font-size:13px;padding:6px 0}.auto-more-products[open]>summary{margin-bottom:6px}
