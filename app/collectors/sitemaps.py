@@ -11,6 +11,7 @@ import ssl
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 from urllib.request import HTTPSHandler, Request, build_opener
 from xml.etree import ElementTree
 
@@ -74,6 +75,7 @@ def fetch_cached(url: str, cache_file: Path, now: datetime, state: dict, max_age
         time.sleep(PAUSE)
     state["requests"] = state.get("requests", 0) + 1
     # certificates are always verified; certifi's list also knows roots (Sectigo R46, Truyol) missing from some Python installs
+    url = quote(url, safe=":/?&=%#+@,;~!$'()*[]")  # a sitemap may list accents (piñata) that http.client cannot send as they are
     context = ssl.create_default_context(cafile=certifi.where())
     with build_opener(NoRedirect(), HTTPSHandler(context=context)).open(Request(url, headers={"User-Agent": AGENT}), timeout=60) as response:
         content_type = response.headers.get("Content-Type", "").lower()

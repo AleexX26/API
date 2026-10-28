@@ -193,6 +193,20 @@ def query_words(text: str) -> list[str]:
     return [w for w in re.findall(r"\w+", normalize(text)) if w not in STOPWORDS]
 
 
+def catalog_words(q: str) -> list[str]:
+    """Words of a catalog search; '85 x 55' becomes 85x55 and '350 g/m2' or '350gr' becomes 350g, as the products are indexed."""
+    def size(match):  # 8,5 x 5,5 cm and 85 x 55 mm are both 85x55 (the products are indexed in mm)
+        w, h, unit = float(match.group(1)), float(match.group(2)), match.group(3)
+        if unit == "cm" or max(w, h) < 20:
+            w, h = w * 10, h * 10
+        return f"{round(w)}x{round(h)}"
+
+    text = normalize(q).replace(",", ".")
+    text = re.sub(r"(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)(?:\s*(mm|cm)\b)?", size, text)
+    text = re.sub(r"(\d{2,4})\s*(?:g/m2|g/m²|gramos|gr\b|g\b)", r"\1g", text)
+    return [w for w in re.findall(r"\w+", text) if w not in STOPWORDS | {"mm", "cm"}]
+
+
 def terms_for(word: str) -> set[str]:
     """What a searched word may look like in a product name: singular/plural and a few real synonyms
     (flyer = folleto, camiseta = playera). Names are matched by containment, so 'flyer' also finds 'flyers'."""
@@ -272,7 +286,7 @@ def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db:
             "brief_hash": signature(brief), "currency": "EUR", "pricing_mode": "manual_public_quotes"}
 
 
-def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None) -> dict:
+def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None) -> dict:
     """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
     empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
     if catalog is None or not Path(catalog).exists():
@@ -302,7 +316,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
                 items.append({"provider": "print24", "title": page["url"].rstrip("/").rsplit("/", 1)[1].replace("-", " ").capitalize(),
                               "url": page["url"], "price_kind": "total", "from_price": str(cheapest[1]), "from_quantity": cheapest[0],
                               "min_quantity": min(p[0] for p in prices), "max_quantity": max(p[0] for p in prices),
-                              "tiers": len({p[0] for p in prices}), "variants": variants,
+                              "tiers": len({p[0] for p in prices}), "variants": variants, "prices": [[q, str(t)] for q, t in prices],
                               "observed_at": page["fetched_at"], "spec": specs.get(page["url"], [])})
         except sqlite3.OperationalError:
             pass
@@ -315,7 +329,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
                 items.append({"provider": prov, "title": rows[0]["product_name"] + (f" · {variant}" if variant else ""), "url": url,
                               "price_kind": rows[0]["price_kind"], "from_price": best["price"], "from_quantity": best["quantity"],
                               "min_quantity": min(r["quantity"] for r in rows), "max_quantity": max(r["quantity"] for r in rows),
-                              "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"],
+                              "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"], "prices": [[r["quantity"], r["price"]] for r in rows],
                               "spec": json.loads(rows[0]["spec_json"])})
         except sqlite3.OperationalError:
             pass
@@ -327,7 +341,10 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
     for item in items:
         counts[item["provider"]] = counts.get(item["provider"], 0) + 1
         item["provider_name"] = names.get(item["provider"], item["provider"])
-    words = query_words(q)
+    words = catalog_words(q)
+    for item in items:
+        if item["provider"] != "print24":
+            item["spec"] = enrich_spec(item["spec"], item["url"])
     if cards is not None:  # business-card form: only business cards that meet every chosen characteristic
         from app.services.cards import entry_matches
         items = [i for i in items if (lambda t: "tarjeta" in t and "visita" in t)(normalize(i["title"] + " " + i["url"]))]
@@ -335,15 +352,21 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
             if item["provider"] != "print24":
                 item["spec"] = enrich_spec(item["spec"], item["url"])
         items = [i for i in items if entry_matches(i, cards, i["provider"])]
+    from app.services.compare import search_tokens
     chosen = []
     for item in items:
         if provider and item["provider"] != provider:
             continue
         haystack = normalize(item["title"] + " " + item["url"] + " " + " ".join(x["label"] for x in item["spec"]))
-        if all(any(t in haystack for t in terms_for(word)) for word in words):
+        extra = set(search_tokens(item).split()) if words else set()  # 85x55, a5, 350g: matched whole, never as part of other words
+        if all(word in extra or any(t in haystack for t in terms_for(word)) for word in words):
             chosen.append(item)
     chosen.sort(key=lambda i: (order.get(i["provider"], 99), i["title"]))
-    return {"total": len(chosen), "items": chosen[offset:offset + limit], "counts": counts}
+    result = {"total": len(chosen), "items": chosen[offset:offset + limit], "counts": counts}
+    if quantity and words:
+        from app.services.compare import compare
+        result["compare"] = compare([i for i in chosen if not provider or i["provider"] == provider], quantity)
+    return result
 
 
 def general_links(seed: Path, q: str) -> dict:

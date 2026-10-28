@@ -395,3 +395,25 @@ def test_catalog_returns_general_page_and_suggestions(tmp_path):
         assert general["onlineprinters"]["url"].endswith("/k/tarjetas-visita") and general["stricker"] is None
         terms = {t["term"]: t["count"] for t in client.get('/api/suggestions').json()["terms"]}
         assert terms.get("tarjetas de visita", 0) >= 2
+
+
+def test_catalog_words_understand_sizes_and_weights():
+    from app.services.workbench import catalog_words
+    assert catalog_words("85 x 55 mm 350 g/m2") == ["85x55", "350g"]
+    assert catalog_words("tarjetas 8,5 x 5,5 cm") == ["tarjetas", "85x55"]
+    assert catalog_words("flyer A5 135gr") == ["flyer", "a5", "135g"]
+
+
+def test_compare_puts_providers_side_by_side_and_marks_cheapest():
+    from app.services.compare import compare
+    def item(provider, title, spec, prices, kind="total"):
+        return {"provider": provider, "title": title, "url": f"https://{provider}.test/{title}", "spec": spec, "price_kind": kind, "prices": prices}
+    base = [{"group": "Formato", "label": "85 x 55 mm"}, {"group": "Papel", "label": "350 g/m² papel estucado"}, {"group": "Páginas", "label": "1 cara"}]
+    items = [item("print24", "a", base, [[500, "30.00"]]), item("onlineprinters", "b", base, [[500, "25.00"]]),
+             item("printai", "c", base, [[100, "10.00"]]), item("truyol", "d", [], [[500, "5.00"]]),
+             item("tuskamisetas", "e", base, [[500, "0.04"]], kind="unit")]
+    out = compare(items, 500)
+    row = out["rows"][0]
+    assert row["label"] == "85 × 55 mm · 350 g/m² · 1 cara" and set(row["cells"]) == {"print24", "onlineprinters", "tuskamisetas"}
+    assert row["cheapest"] == "tuskamisetas" and row["cells"]["tuskamisetas"]["estimated"] and out["skipped"] == 2
+    assert row["cells"]["tuskamisetas"]["total"] == "20.00"

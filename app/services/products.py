@@ -22,11 +22,22 @@ ALIASES = {"formato": "Formato", "tamano": "Formato", "medidas": "Formato", "pap
            "impresion": "Impresión", "caras impresion": "Impresión", "paginas": "Páginas", "numero de paginas": "Páginas",
            "acabados": "Acabados", "laminado": "Acabados", "tratamiento posterior": "Acabados", "golpe seco": "Acabados",
            "barniz 3d selectivo": "Acabados", "orientacion": "Orientación", "prueba": "Prueba", "disenos": "Diseños",
-           "empaquetado": "Empaquetado", "procesamiento": "Procesamiento", "individualizacion": "Individualización"}
+           "empaquetado": "Empaquetado", "procesamiento": "Procesamiento", "individualizacion": "Individualización",
+           "elige el papel": "Papel", "prueba digital": "Prueba", "metodo de impresion": "Impresión", "realizacion": "Acabados"}
+# groups that say nothing about the product itself (checks, delivery time, grouping): not offered as a dropdown
+HIDDEN_GROUPS = {"comprobacion de datos", "revision de tu diseno", "agrupacion", "plazo de produccion", "plazo de entrega", "entrega",
+                 "envio", "tirada por version", "disenos", "motivos", "accesorios"}
+
+
+PREFIX_ALIASES = (("caras impresion", "Impresión"), ("tamano", "Formato"), ("formato", "Formato"), ("tipo estucado", "Papel"), ("gramaje", "Papel"),
+                  ("papel", "Papel"), ("plastificado", "Acabados"), ("acabado", "Acabados"), ("laminado", "Acabados"), ("barniz", "Acabados"))
 
 
 def group_name(raw: str) -> str:
-    return ALIASES.get(normalize(raw), raw.strip())
+    name = normalize(raw)
+    if name in ALIASES:
+        return ALIASES[name]
+    return next((target for prefix, target in PREFIX_ALIASES if name.startswith(prefix)), raw.strip())
 
 
 DIN = {"a3": (297, 420), "a4": (210, 297), "a5": (148, 210), "a6": (105, 148), "a7": (74, 105), "a8": (52, 74), "dl": (100, 210)}
@@ -107,8 +118,13 @@ def product_form(catalog: Path | None, query: str) -> dict:
             groups.setdefault(group, {"seen": set(), "options": [], "count": 0})["count"] += 1
         for x in item["spec"]:
             add(group_name(x["group"]), x["label"])
-    ranked = sorted(groups.items(), key=lambda kv: (-kv[1]["count"], kv[0]))[:MAX_GROUPS]
-    return {"matched": len(items), "groups": [{"name": name, "options": slot["options"][:MAX_OPTIONS]} for name, slot in ranked if slot["options"]]}
+    def useful(name: str, options: list[str]) -> bool:
+        if normalize(name) in HIDDEN_GROUPS or not options:
+            return False
+        return not all(normalize(o).startswith(("sin ", "no ", "ninguno")) for o in options)  # only 'sin acabado' etc.: nothing to choose
+
+    ranked = [kv for kv in sorted(groups.items(), key=lambda kv: (-kv[1]["count"], kv[0])) if useful(kv[0], kv[1]["options"])][:MAX_GROUPS]
+    return {"matched": len(items), "groups": [{"name": name, "options": slot["options"][:MAX_OPTIONS]} for name, slot in ranked]}
 
 
 def generic_matches(entry: dict, filters: dict) -> bool:
