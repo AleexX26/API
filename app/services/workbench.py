@@ -303,7 +303,7 @@ def spec_days(spec: list) -> int | None:
 
 
 def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None, max_days: int | None = None,
-                    seed: Path | None = None) -> dict:
+                    seed: Path | None = None, sides: int | None = None) -> dict:
     """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
     empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
     if catalog is None or not Path(catalog).exists():
@@ -386,6 +386,10 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
         if all(word in extra or any(t in haystack for t in terms_for(word)) for word in words):
             chosen.append(item)
     chosen.sort(key=lambda i: (order.get(i["provider"], 99), i["title"]))
+    if sides:  # the customer asked for 1 or 2 printed sides: only pages that say exactly that
+        from app.services.cards import sides_in
+        from app.services.compare import item_text
+        chosen = [i for i in chosen if sides_in(item_text(i)) == {sides}]
     if max_days:  # a page with no delivery time written cannot be said to arrive in time
         from app.services.compare import days_at
         chosen = [i for i in chosen if (d := days_at(i, quantity)[1]) is not None and d <= max_days]

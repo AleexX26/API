@@ -1,13 +1,15 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mesa · Comparador de impresión</title><link rel="stylesheet" href="/assets/style.css?v=28"><script src="/assets/app.js?v=28" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mesa · Comparador de impresión</title><link rel="stylesheet" href="/assets/style.css?v=29"><script src="/assets/app.js?v=29" defer></script></head>
 <body>
 <aside class="sidebar"><a class="brand" href="/" aria-label="Mesa inicio"><span class="brand-icon">m.</span><span>mesa<span class="brand-sub">TU MESA DE IMPRESIÓN</span></span></a><div class="workspace">ESPACIO DE TRABAJO</div><a class="nav active" href="#catalog"><span>☰</span> Catálogo completo</a><a class="nav" href="#search-section"><span>⌕</span> Buscar y comparar</a><a class="nav" href="#results"><span>▤</span> Proveedores <b>6</b></a><a class="nav" href="#data-status"><span>◔</span> Estado de los datos</a><div class="side-note"><span class="dot"></span> Solo en tu ordenador<p>Tus búsquedas y presupuestos se guardan en local.</p></div></aside>
 <main><header><span>Compras <span class="slash">/</span> Comparador</span><span class="local-tag"><span class="dot"></span> Espacio local</span></header>
 <section id="catalog"><div class="results-heading"><div><div class="eyebrow">TODO LO RECOGIDO</div><h2>Catálogo completo</h2><p id="catalog-summary">Cargando…</p></div></div>
+<details id="customer-box" class="customer-box" open><summary>Tengo el pedido de un cliente</summary><textarea id="customer-text" rows="4" maxlength="4000" placeholder="Pega aquí lo que pide el cliente. Por ejemplo: Necesito 500 tarjetas de visita de 85x55 mm en papel de 350 g por las dos caras, para dentro de 5 días"></textarea><div class="customer-actions"><button class="primary" id="customer-go" type="button">Ver los precios</button><span class="auto-note">El texto no sale de este ordenador.</span></div><div id="customer-items"></div></details>
 <div class="catalog-search"><span class="search-icon" aria-hidden="true">⌕</span><input id="cat-q" type="search" list="cat-suggest" placeholder="¿Qué producto buscas? Tarjetas de visita, flyers, camisetas…" maxlength="100" autocomplete="off"><datalist id="cat-suggest"></datalist><button class="primary" id="cat-go" type="button">Buscar</button></div>
 <div class="suggestions" id="cat-chips"></div>
 <div class="suggestions" id="cat-recent"></div>
+<div id="cat-applied"></div>
 <div class="catalog-filters"><label class="qty-field">Cantidad<input id="cat-qty" type="number" min="1" max="1000000" value="500"></label><label class="qty-field">Entrega máx. (días)<input id="cat-days" type="number" min="1" max="180" placeholder="cualquiera"></label><label class="qty-field">Ordenar<select id="cat-sort" aria-label="Ordenar"><option value="price">Más barato primero</option><option value="size">Formato más grande</option><option value="name">Nombre</option></select></label><select id="cat-provider" aria-label="Proveedor"></select><select id="cat-kind" aria-label="Tipo de producto"><option value="">Todo lo recogido</option><option value="cards">Tarjetas de visita (con filtros)</option></select></div>
 <div id="cat-card-form" hidden></div>
 <div id="cat-compare"></div>

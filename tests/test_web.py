@@ -468,3 +468,38 @@ def test_data_status_endpoint(tmp_path):
     with TestClient(create_app(tmp_path / "w.sqlite3", seed, cat)) as client:
         rows = client.get('/api/data-status').json()["providers"]
         assert "print24" in {r["provider"] for r in rows} and all({"ok", "failed", "pending", "total", "reasons"} <= set(r) for r in rows)
+
+
+def test_customer_text_is_understood():
+    from app.services.request_parser import parse_request
+    one = parse_request("Necesito 500 tarjetas de visita de 85x55 mm en papel de 350 g por las dos caras, plastificado. En 5 días.")[0]
+    assert (one["quantity"], one["sides"], one["max_days"]) == (500, 2, 5) and one["query"] == "tarjetas de visita 85x55 mm 350g"
+    assert one["finishes"] == ["plastificado"]  # a preference: shown, not used to search
+    flyers = parse_request("Quiero 1.000 flyers A5 a una cara en papel estucado 135gr")[0]
+    assert (flyers["quantity"], flyers["sides"], flyers["query"]) == (1000, 1, "flyers a5 135g")
+    two = parse_request("Presupuesto de 200 camisetas y 50 bolsas de tela")
+    assert [(i["product"], i["quantity"]) for i in two] == [("camisetas", 200), ("bolsas", 50)]
+    lines = parse_request("Tarjetas de visita 1000 unidades 9x5 cm\nFlyers DL 2000 uds")
+    assert [(i["product"], i["quantity"]) for i in lines] == [("tarjetas de visita", 1000), ("flyers", 2000)]
+    assert parse_request("Quiero algo bonito para mi boda") == []
+
+
+def test_parse_request_endpoint_and_sides_filter(tmp_path):
+    from app.collectors import offers as store
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t"}
+    for slug, caras in (("tarjetas-visita-4-0-85x55mm", "4/0"), ("tarjetas-visita-4-4-85x55mm", "4/4")):
+        store.replace_offers(db, "onlineprinters", f"https://www.onlineprinters.es/p/{slug}", "Tarjetas de visita",
+                             [{**base, "quantity": 500, "kind": "total", "price": "30.00"}], "2026-10-27", [{"group": "Papel", "label": "350 g/m² papel estucado"}])
+    db.close()
+    with TestClient(create_app(tmp_path / "w.sqlite3", seed, cat)) as client:
+        items = client.post('/api/parse-request', json={"text": "500 tarjetas de visita 85x55 350 g dos caras"}).json()["items"]
+        assert items[0]["sides"] == 2 and items[0]["quantity"] == 500
+        assert client.post('/api/parse-request', json={"text": "x"}).status_code == 422
+        both = client.get('/api/catalog', params={"q": items[0]["query"], "quantity": 500, "provider": "onlineprinters"}).json()
+        two = client.get('/api/catalog', params={"q": items[0]["query"], "quantity": 500, "provider": "onlineprinters", "sides": 2}).json()
+        assert both["total"] == 2 and [i["url"].rsplit("/", 1)[-1] for i in two["items"]] == ["tarjetas-visita-4-4-85x55mm"]

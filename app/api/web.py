@@ -82,6 +82,11 @@ class SearchRequest(BaseModel):
         return value
 
 
+class ParseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(min_length=3, max_length=4000)
+
+
 class QuoteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     brief: Brief
@@ -148,7 +153,8 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
     @app.get("/api/catalog")
     def catalog_view(provider: str = "", q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
                      cards: str = Query("", max_length=1500), quantity: int | None = Query(None, ge=1, le=1000000),
-                     max_days: int | None = Query(None, ge=1, le=180)):
+                     max_days: int | None = Query(None, ge=1, le=180),
+                     sides: int | None = Query(None, ge=1, le=2)):
         if provider and provider not in IDS:
             raise HTTPException(422, "Proveedor desconocido")
         brief = None
@@ -158,9 +164,14 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
                 brief = Brief(query="tarjetas de visita", quantity=1, **data).model_dump()
             except (ValueError, TypeError):
                 raise HTTPException(422, "Filtros de tarjetas no válidos")
-        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed)
+        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed, sides)
         data["general"] = general_links(seed, q)
         return data
+
+    @app.post("/api/parse-request")
+    def parse_customer_request(data: ParseRequest):
+        from app.services.request_parser import parse_request
+        return {"items": parse_request(data.text)}
 
     @app.get("/api/data-status")
     def data_status():
