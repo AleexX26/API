@@ -418,3 +418,53 @@ def test_compare_puts_providers_side_by_side_and_marks_cheapest():
     assert row["cheapest"] == "onlineprinters"  # the unknown-VAT price (20 €) is shown but never marked cheapest
     assert row["cells"]["tuskamisetas"]["estimated"] and row["cells"]["tuskamisetas"]["tax_status"] == "unknown" and out["skipped"] == 2
     assert row["cells"]["tuskamisetas"]["total"] == "20.00"
+
+
+def test_delivery_days_are_read_from_the_page_and_filter_the_catalog(tmp_path):
+    from app.services.workbench import spec_days
+    from app.services.compare import days_at
+    assert spec_days([{"group": "Plazo de producción", "label": "6-7 días hábiles"}]) == 7
+    assert spec_days([{"group": "Entrega", "label": "♻ Ecosostenible - 3/4 días laborables de producción"}]) == 4
+    assert spec_days([{"group": "Papel", "label": "135 g"}]) is None
+    assert days_at({"prices": [[500, "30", 5, 3], [100, "10", 7, 7]]}, 500) == (5, 3)
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    from app.collectors import offers as store
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t"}
+    for slug, plazo in (("flyers-rapidos", "3 días hábiles"), ("flyers-lentos", "9 días hábiles")):
+        store.replace_offers(db, "onlineprinters", f"https://www.onlineprinters.es/p/{slug}", slug.replace("-", " "),
+                             [{**base, "quantity": 500, "kind": "total", "price": "30.00"}], "2026-10-27", [{"group": "Plazo de producción", "label": plazo}])
+    db.close()
+    with TestClient(create_app(tmp_path / "w.sqlite3", seed, cat)) as client:
+        fast = client.get('/api/catalog', params={"q": "flyers", "quantity": 500, "max_days": 5, "provider": "onlineprinters"}).json()
+        assert [i["title"] for i in fast["items"]] == ["flyers rapidos"]
+
+
+def test_catalog_lists_unpriced_pages_as_links(tmp_path):
+    from app.collectors import offers as store
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {"printai": {"links": [{"title": "Carteles personalizados", "url": "https://www.printai.es/carteles/"}]}}}))
+    cat = tmp_path / "catalog.sqlite3"
+    make_catalog(cat)
+    db = store.connect(cat)
+    store.record_page(db, "printai", "https://www.printai.es/carteles-xl/", "2026-10-27", "failed", 0, "Selected quantity not found") if hasattr(store, "record_page") else None
+    db.close()
+    with TestClient(create_app(tmp_path / "w.sqlite3", seed, cat)) as client:
+        data = client.get('/api/catalog', params={"q": "carteles", "quantity": 500}).json()
+        assert any(u["url"] == "https://www.printai.es/carteles/" and u["provider"] == "printai" for u in data["unpriced"])
+
+
+def test_data_status_endpoint(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    cat = tmp_path / "data" / "catalog.sqlite3"
+    cat.parent.mkdir()
+    make_catalog(cat)
+    from app.collectors import offers as store
+    store.connect(cat).close()  # creates the supplier tables
+    with TestClient(create_app(tmp_path / "w.sqlite3", seed, cat)) as client:
+        rows = client.get('/api/data-status').json()["providers"]
+        assert "print24" in {r["provider"] for r in rows} and all({"ok", "failed", "pending", "total", "reasons"} <= set(r) for r in rows)

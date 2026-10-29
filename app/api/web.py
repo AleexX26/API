@@ -147,7 +147,8 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
 
     @app.get("/api/catalog")
     def catalog_view(provider: str = "", q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
-                     cards: str = Query("", max_length=1500), quantity: int | None = Query(None, ge=1, le=1000000)):
+                     cards: str = Query("", max_length=1500), quantity: int | None = Query(None, ge=1, le=1000000),
+                     max_days: int | None = Query(None, ge=1, le=180)):
         if provider and provider not in IDS:
             raise HTTPException(422, "Proveedor desconocido")
         brief = None
@@ -157,9 +158,16 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
                 brief = Brief(query="tarjetas de visita", quantity=1, **data).model_dump()
             except (ValueError, TypeError):
                 raise HTTPException(422, "Filtros de tarjetas no válidos")
-        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity)
+        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed)
         data["general"] = general_links(seed, q)
         return data
+
+    @app.get("/api/data-status")
+    def data_status():
+        from app.collectors.status import table
+        root = Path(catalog).parent.parent if catalog is not None else ROOT
+        names = {p["id"]: p["name"] for p in PROVIDERS}
+        return {"providers": [{**row, "name": names.get(row["provider"], row["provider"])} for row in table(root)]}
 
     @app.get("/api/suggestions")
     def suggest():

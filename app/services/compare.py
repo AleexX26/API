@@ -48,7 +48,8 @@ def search_tokens(item: dict) -> str:
 
 def price_at(item: dict, quantity: int) -> tuple[Decimal, bool] | None:
     """Total net price at exactly that quantity (and whether it is estimated from a unit price), or None."""
-    for q, price in item.get("prices", []):
+    for tier in item.get("prices", []):
+        q, price = tier[0], tier[1]
         if int(q) == quantity:
             return (Decimal(price) * quantity, True) if item["price_kind"] == "unit" else (Decimal(price), False)
     return None
@@ -57,6 +58,15 @@ def price_at(item: dict, quantity: int) -> tuple[Decimal, bool] | None:
 def gross(total: Decimal, tax: str) -> Decimal | None:
     """Total with 21% VAT: net prices get it added, gross ones stay, unknown ones cannot be compared."""
     return total * IVA if tax == "net" else total if tax == "gross" else None
+
+
+def days_at(item: dict, quantity: int | None) -> tuple[int | None, int | None]:
+    """(days of the cheapest option, days of the fastest option) at that quantity, or over all tiers when it has none."""
+    tiers = item.get("prices", [])
+    chosen = [t for t in tiers if quantity is not None and int(t[0]) == quantity] or tiers
+    cheapest = next((t[2] for t in chosen if len(t) > 2 and t[2] is not None), None)
+    fastest = [t[3] for t in chosen if len(t) > 3 and t[3] is not None]
+    return cheapest, min(fastest) if fastest else None
 
 
 def compare(items: list[dict], quantity: int) -> dict:
@@ -76,7 +86,7 @@ def compare(items: list[dict], quantity: int) -> dict:
         cell = row["cells"].get(item["provider"])
         tax = item.get("tax_status", "unknown")
         if cell is None or priced[0] < Decimal(cell["total"]):
-            row["cells"][item["provider"]] = {"total": str(priced[0]), "estimated": priced[1], "tax_status": tax, "title": item["title"], "url": item["url"]}
+            row["cells"][item["provider"]] = {"total": str(priced[0]), "estimated": priced[1], "tax_status": tax, "days": days_at(item, quantity)[0], "title": item["title"], "url": item["url"]}
     order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
     out = []
     for row in rows.values():

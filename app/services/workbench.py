@@ -287,7 +287,23 @@ def search(path: Path, seed: Path, brief: dict, selected: list[str], catalog_db:
             "brief_hash": signature(brief), "currency": "EUR", "pricing_mode": "manual_public_quotes"}
 
 
-def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None) -> dict:
+def spec_days(spec: list) -> int | None:
+    """Delivery or production time written in a page's spec ('8-9 días hábiles', '3/4 días laborables'): the longest figure."""
+    for x in spec:
+        name = normalize(x["group"])
+        if name.startswith(("plazo", "entrega")) or "plazo de produccion" in name:
+            numbers = [int(n) for n in re.findall(r"\d+", x["label"])]
+            if numbers:
+                return max(numbers)
+    for x in spec:  # Printai writes it inside another label ('Ecosostenible - 3/4 días laborables de producción')
+        match = re.search(r"(\d+)(?:\s*[-/]\s*(\d+))?\s*d[ií]as\s*(?:h[aá]biles|laborables)", x["label"], re.I)
+        if match:
+            return max(int(g) for g in match.groups() if g)
+    return None
+
+
+def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None, max_days: int | None = None,
+                    seed: Path | None = None) -> dict:
     """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
     empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
     if catalog is None or not Path(catalog).exists():
@@ -302,11 +318,18 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
             specs = {}
         try:
             for page in db.execute("SELECT * FROM product_pages WHERE status='ok' ORDER BY url"):
-                prices = [(r["q"], Decimal(r["t"])) for r in db.execute(
-                    """SELECT qt.value AS q, p.total_net AS t FROM prices p JOIN quantities qt ON qt.id=p.quantity_id
+                raw = [(r["q"], Decimal(r["t"]), r["d"]) for r in db.execute(
+                    """SELECT qt.value AS q, p.total_net AS t, p.delivery_days AS d FROM prices p JOIN quantities qt ON qt.id=p.quantity_id
                        WHERE p.configuration_id=?""", (page["configuration_id"],))]
-                if not prices:
+                if not raw:
                     continue
+                prices, tiers_days = [], {}
+                for tier_qty in sorted({r[0] for r in raw}):
+                    rows_q = [r for r in raw if r[0] == tier_qty]
+                    best_q = min(rows_q, key=lambda r: r[1])
+                    days = [int(r[2]) for r in rows_q if r[2] not in (None, "")]
+                    prices.append((tier_qty, best_q[1]))
+                    tiers_days[tier_qty] = [int(best_q[2]) if best_q[2] not in (None, "") else None, min(days) if days else None]
                 try:
                     variants = db.execute("""SELECT count(*) FROM configurations c JOIN products pr ON pr.id=c.product_id
                                              JOIN config_specs s ON s.configuration_id=c.id WHERE pr.source_id=? AND c.id<>?""",
@@ -317,7 +340,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
                 items.append({"provider": "print24", "title": page["url"].rstrip("/").rsplit("/", 1)[1].replace("-", " ").capitalize(),
                               "url": page["url"], "price_kind": "total", "tax_status": "net", "from_price": str(cheapest[1]), "from_quantity": cheapest[0],
                               "min_quantity": min(p[0] for p in prices), "max_quantity": max(p[0] for p in prices),
-                              "tiers": len({p[0] for p in prices}), "variants": variants, "prices": [[q, str(t)] for q, t in prices],
+                              "tiers": len({p[0] for p in prices}), "variants": variants, "prices": [[q, str(t), *tiers_days[q]] for q, t in prices],
                               "observed_at": page["fetched_at"], "spec": specs.get(page["url"], [])})
         except sqlite3.OperationalError:
             pass
@@ -330,7 +353,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
                 items.append({"provider": prov, "title": rows[0]["product_name"] + (f" · {variant}" if variant else ""), "url": url,
                               "price_kind": rows[0]["price_kind"], "tax_status": rows[0]["tax_status"], "from_price": best["price"], "from_quantity": best["quantity"],
                               "min_quantity": min(r["quantity"] for r in rows), "max_quantity": max(r["quantity"] for r in rows),
-                              "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"], "prices": [[r["quantity"], r["price"]] for r in rows],
+                              "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"], "prices": [[r["quantity"], r["price"], spec_days(json.loads(rows[0]["spec_json"])), spec_days(json.loads(rows[0]["spec_json"]))] for r in rows],
                               "spec": json.loads(rows[0]["spec_json"])})
         except sqlite3.OperationalError:
             pass
@@ -363,11 +386,55 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
         if all(word in extra or any(t in haystack for t in terms_for(word)) for word in words):
             chosen.append(item)
     chosen.sort(key=lambda i: (order.get(i["provider"], 99), i["title"]))
+    if max_days:  # a page with no delivery time written cannot be said to arrive in time
+        from app.services.compare import days_at
+        chosen = [i for i in chosen if (d := days_at(i, quantity)[1]) is not None and d <= max_days]
     result = {"total": len(chosen), "items": chosen[offset:offset + limit], "counts": counts}
+    if words and seed is not None and cards is None and not max_days:
+        result["unpriced"] = unpriced_pages(catalog, seed, words, provider, {i["url"] for i in items})
     if quantity and words:
         from app.services.compare import compare
         result["compare"] = compare([i for i in chosen if not provider or i["provider"] == provider], quantity)
     return result
+
+
+def url_key(url: str) -> str:
+    return url.strip().rstrip("/").lower()
+
+
+def unpriced_pages(catalog: Path | None, seed: Path, words: list[str], provider: str | None, priced: set[str]) -> list[dict]:
+    """Pages that match the search but have no price collected: those of the public link index and the ones whose
+    price table could not be read (e.g. Printai's, behind a calculator its robots.txt forbids). Shown as links only."""
+    names = {p["id"]: p["name"] for p in PROVIDERS}
+    order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
+    seen = {url_key(u) for u in priced}
+    found = []
+
+    def add(prov: str, title: str, url: str):
+        if re.fullmatch(r"[0-9a-f]{20,}", title.strip().lower()):  # Truyol ends addresses with a hash: use the product name before it
+            title = url.rstrip("/").rsplit("/", 2)[-2].replace("-", " ").capitalize()
+        text = normalize(title + " " + url)
+        if (provider and prov != provider) or url_key(url) in seen or not all(any(t in text for t in terms_for(w)) for w in words):
+            return
+        seen.add(url_key(url))
+        found.append({"provider": prov, "provider_name": names.get(prov, prov), "title": title, "url": url})
+
+    if seed.exists():
+        for prov, entry in json.loads(seed.read_text(encoding="utf-8")).get("providers", {}).items():
+            for link in entry.get("links", []):
+                add(prov, link["title"], link["url"])
+    if catalog is not None and Path(catalog).exists():
+        db = sqlite3.connect(f"file:{Path(catalog).as_posix()}?mode=ro", uri=True)
+        try:
+            for prov, url in db.execute("SELECT provider, url FROM supplier_pages WHERE status='failed' AND error NOT LIKE '%no longer available%'"):
+                from urllib.parse import unquote
+                add(prov, unquote(url.rstrip("/").rsplit("/", 1)[-1]).replace("-", " ").capitalize(), url)
+        except sqlite3.OperationalError:
+            pass
+        finally:
+            db.close()
+    found.sort(key=lambda x: (order.get(x["provider"], 99), x["title"]))
+    return found[:400]
 
 
 def general_links(seed: Path, q: str) -> dict:
