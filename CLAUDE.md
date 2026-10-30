@@ -20,6 +20,7 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Comandos
 - Tests: `.\.venv\Scripts\python.exe -m pytest -q --basetemp .test-runs/N` (N nuevo cada vez).
+- Pruebas de navegador (`tests/browser/`, 20 casos: móvil 375 px y escritorio 1440 px, claro y oscuro; sin errores de consola, sin scroll horizontal, contraste WCAG AA con axe-core, búsqueda y pedido de cliente): necesitan `uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt` y el Chromium de `%LOCALAPPDATA%\ms-playwright`; si faltan, se saltan solas.
 - Web: `Abrir comparador.cmd` o `python web_server.py --open`. Para compartirlo con la misma red (solo lectura para los demás PC; solo el PC anfitrión guarda presupuestos): `Abrir comparador para la oficina.cmd` (`--lan`, escucha en 0.0.0.0:8765, muestra el enlace con la IP; Windows pide permiso de Firewall en redes privadas).
 - Print24: `python -m app.collectors.sitemaps`, luego `python -m app.collectors.products` (171 productos, ~15 min), luego `python -m app.collectors.specs`.
 - Otros: `python -m app.collectors.<tuskamisetas|onlineprinters|printai> URL…`; Onlineprinters entero: `python -m app.collectors.onlineprinters` (usa el sitemap en caché).
@@ -36,6 +37,7 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Decisiones
 
+- 2026-10-30: pruebas de navegador con Playwright en `tests/browser/` (servidor propio con catálogo mínimo; usa el puerto 8765 y, si está ocupado, modo red local en otro, porque las escrituras solo aceptan ese origen). Con ellas se oscurecieron los grises de `web/style.css` que no llegaban a contraste 4,5:1. La web no tiene tema oscuro propio: el caso «oscuro» solo comprueba que no se rompe con esa preferencia del sistema. Las fixtures no se pueden esperar con `wait_for_function(texto)` por la CSP (sin `unsafe-eval`): usar `expect(locator)`.
 - 2026-10-30: la comparación es honesta: filas «idénticas» (mismo tamaño, gramaje, familia de papel, acabado y caras) y filas «parecidas» (mismo tamaño, gramaje y caras pero papel o acabado distinto, con el detalle de cada una); lo no comparable (`comparable:false`, p. ej. ropa sin personalizar de TusKamisetas) queda fuera y se avisa. Cada precio dice si el envío va incluido (`shipping`). Si la cantidad está entre dos tramos se estima con el precio por unidad de los vecinos y se marca «estimado entre N y M uds» (nunca fuera del rango). Lógica en `app/services/compare.py` (`price_at`, `compare`).
 
 - 2026-10-30: carpeta ordenada: los scripts de instalar/recoger/trasladar pasan de la raíz a `herramientas/` (y `herramientas/recogida/`), y los registros y pruebas sueltos de `data/` a `data/registros/anteriores/` y `data/pruebas/`. Los `.cmd` se colocan solos en la carpeta del proyecto (`cd /d "%~dp0.."`). En la raíz solo quedan los dos «Abrir comparador».
