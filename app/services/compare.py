@@ -1,11 +1,11 @@
-"""Side-by-side comparison of collected products: same size, same paper weight and same number of sides, one price per provider.
+"""Side-by-side comparison of collected products: same size, paper weight and family, finish and number of sides, one price per provider.
 
-Orientative: it does not know about finishes or ink details, so the web asks to check the product pages.
+Products that are not comparable (blank garments, without printing) stay out. Orientative still: ink details are not compared.
 """
 import re
 from decimal import Decimal
 
-from app.services.cards import grams_in, sides_in, sizes_in
+from app.services.cards import FINISH_TERMS, NEGATED, PAPER_FAMILIES, grams_in, sides_in, sizes_in
 from app.services.products import DIN
 from app.services.workbench import IVA, PROVIDERS, normalize
 
@@ -46,13 +46,41 @@ def search_tokens(item: dict) -> str:
     return " ".join(sorted(tokens))
 
 
-def price_at(item: dict, quantity: int) -> tuple[Decimal, bool] | None:
-    """Total net price at exactly that quantity (and whether it is estimated from a unit price), or None."""
-    for tier in item.get("prices", []):
-        q, price = tier[0], tier[1]
-        if int(q) == quantity:
-            return (Decimal(price) * quantity, True) if item["price_kind"] == "unit" else (Decimal(price), False)
-    return None
+def price_at(item: dict, quantity: int) -> dict | None:
+    """Net total at that quantity: {"total", "estimated" (from a unit price or between two tiers), "between" ([lo, hi] or None)}.
+
+    Exact tier first. A page with unit prices by bracket ('from N units') gives the unit price of the largest bracket not above
+    the quantity. For totals, a quantity between two tiers is estimated from the unit prices of its neighbours (never beyond them).
+    """
+    tiers = sorted({(int(t[0]), Decimal(t[1])) for t in item.get("prices", [])})
+    if not tiers or quantity < 1:
+        return None
+    if item["price_kind"] == "unit":
+        below = [t for t in tiers if t[0] <= quantity]
+        return {"total": str((below[-1][1] * quantity).quantize(Decimal("0.01"))), "estimated": True, "between": None} if below else None
+    for q, price in tiers:
+        if q == quantity:
+            return {"total": str(price), "estimated": False, "between": None}
+    lo = [t for t in tiers if t[0] < quantity]
+    hi = [t for t in tiers if t[0] > quantity]
+    if not lo or not hi:
+        return None
+    (q1, p1), (q2, p2) = lo[-1], hi[0]
+    unit = p1 / q1 + (p2 / q2 - p1 / q1) * Decimal(quantity - q1) / Decimal(q2 - q1)
+    return {"total": str((unit * quantity).quantize(Decimal("0.01"))), "estimated": True, "between": [q1, q2]}
+
+
+def item_family(item: dict) -> str:
+    """Paper family named by the page (estucado, offset, carton…), or '' when it does not say."""
+    sources = [x["label"] for x in item["spec"] if normalize(x["group"]) in PAPER_GROUPS] or [item_text(item)]
+    text = normalize(" ".join(sources))
+    return next((family for family, terms in PAPER_FAMILIES.items() if any(t in text for t in terms)), "")
+
+
+def item_finishes(item: dict) -> tuple:
+    """Finishes the page names (barniz, relieve, plastific…), leaving out the 'sin …' ones."""
+    text = NEGATED.sub("", item_text(item))
+    return tuple(sorted(name for name, terms in FINISH_TERMS.items() if any(t in text for t in terms)))
 
 
 def gross(total: Decimal, tax: str) -> Decimal | None:
@@ -69,10 +97,19 @@ def days_at(item: dict, quantity: int | None) -> tuple[int | None, int | None]:
     return cheapest, min(fastest) if fastest else None
 
 
+def finish_label(finishes: tuple) -> str:
+    return " + ".join({"plastific": "plastificado", "laminado en caliente": "laminado en caliente"}.get(f, f) for f in finishes) or "sin acabado"
+
+
 def compare(items: list[dict], quantity: int) -> dict:
+    """One row per configuration (size, paper weight, paper family, finish, sides) and one price per provider at that quantity."""
     rows: dict[tuple, dict] = {}
-    skipped = 0
+    loose: dict[tuple, dict] = {}  # same size, weight and sides but maybe other paper or finish: "similar", never "equal"
+    skipped = excluded = 0
     for item in items:
+        if not item.get("comparable", True):
+            excluded += 1
+            continue
         sizes = item_sizes(item)
         grams = item_grams(item)
         sides = sides_in(item_text(item))
@@ -82,20 +119,40 @@ def compare(items: list[dict], quantity: int) -> dict:
             continue
         size = tuple(sorted(sizes, key=lambda s: (-s[0], s[1]))[0])
         side = next(iter(sides)) if len(sides) == 1 else 0
-        row = rows.setdefault((size, grams, side), {"size": f"{size[0]} × {size[1]} mm", "grams": grams, "sides": side, "cells": {}})
+        family, finishes = item_family(item), item_finishes(item)
+        row = rows.setdefault((size, grams, family, finishes, side), {"size": f"{size[0]} × {size[1]} mm", "grams": grams, "family": family,
+                                                                     "finishes": finishes, "sides": side, "cells": {}})
+        data = {**priced, "tax_status": item.get("tax_status", "unknown"), "shipping": item.get("shipping", "unknown"),
+                "days": days_at(item, quantity)[0], "title": item["title"], "url": item["url"]}
         cell = row["cells"].get(item["provider"])
-        tax = item.get("tax_status", "unknown")
-        if cell is None or priced[0] < Decimal(cell["total"]):
-            row["cells"][item["provider"]] = {"total": str(priced[0]), "estimated": priced[1], "tax_status": tax, "days": days_at(item, quantity)[0], "title": item["title"], "url": item["url"]}
+        if cell is None or Decimal(priced["total"]) < Decimal(cell["total"]):
+            row["cells"][item["provider"]] = data
+        group = loose.setdefault((size, grams, side), {"size": f"{size[0]} × {size[1]} mm", "grams": grams, "sides": side, "cells": {}})
+        current = group["cells"].get(item["provider"])
+        if current is None or Decimal(priced["total"]) < Decimal(current["total"]):
+            group["cells"][item["provider"]] = {**data, "detail": f"{family or 'papel sin indicar'} · {finish_label(finishes)}", "key": (family, finishes)}
     order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
+    similar = []
+    for group in loose.values():
+        if len(group["cells"]) > 1 and len({c["key"] for c in group["cells"].values()}) > 1:
+            known = {p: gross(Decimal(c["total"]), c["tax_status"]) for p, c in group["cells"].items()}
+            known = {p: v for p, v in known.items() if v is not None}
+            sides = {1: " · 1 cara", 2: " · 2 caras"}.get(group["sides"], "")
+            for c in group["cells"].values():
+                c.pop("key")
+            similar.append({"label": f"{group['size']} · {group['grams']} g/m²{sides}", "cells": group["cells"],
+                            "cheapest": min(known, key=known.get) if len(known) > 1 else None, "providers": len(group["cells"])})
+    similar.sort(key=lambda r: (-r["providers"], min(Decimal(c["total"]) for c in r["cells"].values())))
     out = []
     for row in rows.values():
         known = {p: gross(Decimal(c["total"]), c["tax_status"]) for p, c in row["cells"].items()}
         known = {p: v for p, v in known.items() if v is not None}  # a price with unknown VAT is shown but never marked cheapest
         cheapest = min(known, key=known.get) if len(known) > 1 else None
         sides = {1: " · 1 cara", 2: " · 2 caras"}.get(row["sides"], "")
-        out.append({"label": f"{row['size']} · {row['grams']} g/m²{sides}", "cells": row["cells"], "cheapest": cheapest,
-                    "providers": len(row["cells"])})
+        finish = finish_label(row["finishes"])
+        out.append({"label": f"{row['size']} · {row['grams']} g/m² · {row['family'] or 'papel sin indicar'}{sides} · {finish}", "cells": row["cells"],
+                    "cheapest": cheapest, "providers": len(row["cells"])})
     out.sort(key=lambda r: (-r["providers"], min(Decimal(c["total"]) for c in r["cells"].values())))
     used = sorted({p for r in out for p in r["cells"]}, key=lambda p: order.get(p, 99))
-    return {"quantity": quantity, "providers": used, "rows": out[:60], "skipped": skipped}
+    used = sorted({p for r in out + similar for p in r["cells"]}, key=lambda p: order.get(p, 99))
+    return {"quantity": quantity, "providers": used, "rows": out[:60], "similar": similar[:40], "skipped": skipped, "excluded": excluded}

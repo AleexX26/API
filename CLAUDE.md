@@ -36,6 +36,8 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Decisiones
 
+- 2026-10-30: la comparación es honesta: filas «idénticas» (mismo tamaño, gramaje, familia de papel, acabado y caras) y filas «parecidas» (mismo tamaño, gramaje y caras pero papel o acabado distinto, con el detalle de cada una); lo no comparable (`comparable:false`, p. ej. ropa sin personalizar de TusKamisetas) queda fuera y se avisa. Cada precio dice si el envío va incluido (`shipping`). Si la cantidad está entre dos tramos se estima con el precio por unidad de los vecinos y se marca «estimado entre N y M uds» (nunca fuera del rango). Lógica en `app/services/compare.py` (`price_at`, `compare`).
+
 - 2026-10-30: carpeta ordenada: los scripts de instalar/recoger/trasladar pasan de la raíz a `herramientas/` (y `herramientas/recogida/`), y los registros y pruebas sueltos de `data/` a `data/registros/anteriores/` y `data/pruebas/`. Los `.cmd` se colocan solos en la carpeta del proyecto (`cd /d "%~dp0.."`). En la raíz solo quedan los dos «Abrir comparador».
 - 2026-10-27: el «Catálogo completo» también tiene el modo «Tarjetas de visita (con filtros)»: mismo formulario (`/api/card-options`), enviado como JSON en `/api/catalog?cards=…` y filtrado con `entry_matches`.
 - 2026-10-27: el alcance de recogida pasa a «tarjetas de visita» (catálogo completo en pausa). Al buscar tarjetas, el formulario copia el configurador de Print24 (opciones leídas de su ficha en caché, `app/services/cards.py`) y filtra de verdad (`brief.strict`): solo salen fichas que cumplen todo; si no hay, la web lo dice. Prueba/individualización/diseños/empaquetado solo se piden a Print24. De Print24 solo hay precio de la configuración por defecto de cada ficha.

@@ -404,20 +404,45 @@ def test_catalog_words_understand_sizes_and_weights():
     assert catalog_words("flyer A5 135gr") == ["flyer", "a5", "135g"]
 
 
+def _cmp_item(provider, title, spec, prices, kind="total", tax="net", comparable=True, shipping="included"):
+    return {"provider": provider, "title": title, "url": f"https://{provider}.test/{title}", "spec": spec, "price_kind": kind, "prices": prices,
+            "tax_status": tax, "comparable": comparable, "shipping": shipping}
+
+
 def test_compare_puts_providers_side_by_side_and_marks_cheapest():
     from app.services.compare import compare
-    def item(provider, title, spec, prices, kind="total", tax="net"):
-        return {"provider": provider, "title": title, "url": f"https://{provider}.test/{title}", "spec": spec, "price_kind": kind, "prices": prices, "tax_status": tax}
     base = [{"group": "Formato", "label": "85 x 55 mm"}, {"group": "Papel", "label": "350 g/m² papel estucado"}, {"group": "Páginas", "label": "1 cara"}]
-    items = [item("print24", "a", base, [[500, "30.00"]]), item("onlineprinters", "b", base, [[500, "25.00"]]),
-             item("printai", "c", base, [[100, "10.00"]]), item("truyol", "d", [], [[500, "5.00"]]),
-             item("tuskamisetas", "e", base, [[500, "0.04"]], kind="unit", tax="unknown")]
+    items = [_cmp_item("print24", "a", base, [[500, "30.00"]]), _cmp_item("onlineprinters", "b", base, [[500, "25.00"]]),
+             _cmp_item("printai", "c", base, [[100, "10.00"]]), _cmp_item("truyol", "d", [], [[500, "5.00"]]),
+             _cmp_item("tuskamisetas", "e", base, [[500, "0.04"]], kind="unit", tax="unknown", comparable=False, shipping="excluded")]
     out = compare(items, 500)
     row = out["rows"][0]
-    assert row["label"] == "85 × 55 mm · 350 g/m² · 1 cara" and set(row["cells"]) == {"print24", "onlineprinters", "tuskamisetas"}
-    assert row["cheapest"] == "onlineprinters"  # the unknown-VAT price (20 €) is shown but never marked cheapest
-    assert row["cells"]["tuskamisetas"]["estimated"] and row["cells"]["tuskamisetas"]["tax_status"] == "unknown" and out["skipped"] == 2
-    assert row["cells"]["tuskamisetas"]["total"] == "20.00"
+    assert row["label"] == "85 × 55 mm · 350 g/m² · estucado · 1 cara · sin acabado" and set(row["cells"]) == {"print24", "onlineprinters"}
+    assert row["cheapest"] == "onlineprinters" and row["cells"]["onlineprinters"]["shipping"] == "included"
+    assert out["excluded"] == 1 and out["skipped"] == 2  # blank garment (not comparable); no size/paper; no price at 500
+
+
+def test_compare_does_not_mix_papers_or_finishes_and_lists_them_as_similar():
+    from app.services.compare import compare
+    def spec(paper, finish="Sin"):
+        return [{"group": "Formato", "label": "85 x 55 mm"}, {"group": "Papel", "label": paper}, {"group": "Páginas", "label": "1 cara"}, {"group": "Acabados", "label": finish}]
+    items = [_cmp_item("print24", "a", spec("300 g/m² papel reciclado"), [[100, "16.00"]]), _cmp_item("onlineprinters", "b", spec("300 g/m² papel estucado"), [[100, "19.00"]]),
+             _cmp_item("printai", "c", spec("300 g/m² papel estucado", "Plastificado"), [[100, "21.00"]])]
+    out = compare(items, 100)
+    assert [r["providers"] for r in out["rows"]] == [1, 1, 1]  # no two are really equal
+    assert len(out["similar"]) == 1 and set(out["similar"][0]["cells"]) == {"print24", "onlineprinters", "printai"}
+    assert "reciclado" in out["similar"][0]["cells"]["print24"]["detail"] and "plastificado" in out["similar"][0]["cells"]["printai"]["detail"]
+
+
+def test_price_between_tiers_is_estimated_but_never_beyond_them():
+    from app.services.compare import price_at
+    item = {"price_kind": "total", "prices": [[250, "25.00"], [500, "40.00"]]}
+    assert price_at(item, 250) == {"total": "25.00", "estimated": False, "between": None}
+    mid = price_at(item, 300)  # unit 0.10 at 250, 0.08 at 500 -> 0.096 at 300
+    assert mid["between"] == [250, 500] and mid["estimated"] and mid["total"] == "28.80"
+    assert price_at(item, 100) is None and price_at(item, 1000) is None
+    unit = {"price_kind": "unit", "prices": [[1, "5.00"], [100, "3.00"]]}
+    assert price_at(unit, 250)["total"] == "750.00" and price_at(unit, 250)["estimated"]
 
 
 def test_delivery_days_are_read_from_the_page_and_filter_the_catalog(tmp_path):

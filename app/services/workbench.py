@@ -338,7 +338,8 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
                     variants = 0
                 cheapest = min(prices, key=lambda x: x[1])
                 items.append({"provider": "print24", "title": page["url"].rstrip("/").rsplit("/", 1)[1].replace("-", " ").capitalize(),
-                              "url": page["url"], "price_kind": "total", "tax_status": "net", "from_price": str(cheapest[1]), "from_quantity": cheapest[0],
+                              "url": page["url"], "price_kind": "total", "tax_status": "net", "shipping": "included", "comparable": True,
+                              "scope": "configuración por defecto; el total incluye el envío de la opción más barata", "from_price": str(cheapest[1]), "from_quantity": cheapest[0],
                               "min_quantity": min(p[0] for p in prices), "max_quantity": max(p[0] for p in prices),
                               "tiers": len({p[0] for p in prices}), "variants": variants, "prices": [[q, str(t), *tiers_days[q]] for q, t in prices],
                               "observed_at": page["fetched_at"], "spec": specs.get(page["url"], [])})
@@ -351,7 +352,8 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
             for (prov, url, group, variant), rows in groups.items():
                 best = min(rows, key=lambda r: Decimal(r["price"]))
                 items.append({"provider": prov, "title": rows[0]["product_name"] + (f" · {variant}" if variant else ""), "url": url,
-                              "price_kind": rows[0]["price_kind"], "tax_status": rows[0]["tax_status"], "from_price": best["price"], "from_quantity": best["quantity"],
+                              "price_kind": rows[0]["price_kind"], "tax_status": rows[0]["tax_status"], "shipping": rows[0]["shipping"],
+                              "scope": rows[0]["scope"], "comparable": "sin personalizar" not in normalize(rows[0]["scope"] or ""), "from_price": best["price"], "from_quantity": best["quantity"],
                               "min_quantity": min(r["quantity"] for r in rows), "max_quantity": max(r["quantity"] for r in rows),
                               "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"], "prices": [[r["quantity"], r["price"], spec_days(json.loads(rows[0]["spec_json"])), spec_days(json.loads(rows[0]["spec_json"]))] for r in rows],
                               "spec": json.loads(rows[0]["spec_json"])})
@@ -394,6 +396,10 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
         from app.services.compare import days_at
         chosen = [i for i in chosen if (d := days_at(i, quantity)[1]) is not None and d <= max_days]
     result = {"total": len(chosen), "items": chosen[offset:offset + limit], "counts": counts}
+    if quantity and words:
+        from app.services.compare import price_at
+        for item in result["items"]:
+            item["at"] = price_at(item, quantity)  # price at that quantity (exact, or estimated between two tiers)
     if words and seed is not None and cards is None and not max_days:
         result["unpriced"] = unpriced_pages(catalog, seed, words, provider, {i["url"] for i in items})
     if quantity and words:
