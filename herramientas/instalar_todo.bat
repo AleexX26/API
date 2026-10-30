@@ -80,8 +80,8 @@ goto entorno
 :omitirdatos
 echo Se mantienen los datos que ya habia en este PC.
 :entorno
-if exist "%DEST%\preparar_pc_nuevo.cmd" (
-  call "%DEST%\preparar_pc_nuevo.cmd"
+if exist "%DEST%\herramientas\preparar_pc_nuevo.cmd" (
+  call "%DEST%\herramientas\preparar_pc_nuevo.cmd"
 )
 
 echo.
@@ -89,7 +89,7 @@ echo ============================================================
 echo  LISTO. Carpeta: %DEST%
 echo  - Abrir el comparador:         Abrir comparador.cmd
 echo  - Compartirlo en la oficina:   Abrir comparador para la oficina.cmd
-echo  - Recoger datos (UN solo PC a la vez): reanudar_recogida.cmd y recoger_print24.cmd
+echo  - Recoger datos (UN solo PC a la vez): herramientas\recogida\reanudar_recogida.cmd y recoger_print24.cmd
 echo ============================================================
 pause
 endlocal

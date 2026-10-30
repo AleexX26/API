@@ -2,7 +2,7 @@
 
 27-10-2026. URL: `https://print24.com/es/productos-impresion/flyers` (de `catalog_urls`, tipo `product`).
 Una sola petición GET (HTTP 200, 1,4 MB, `text/html`), permitida por robots.txt, sin cookies,
-sin login, sin llamar a ninguna API. Sin captcha ni bloqueo. Guardado en `data/product-probe/`:
+sin login, sin llamar a ninguna API. Sin captcha ni bloqueo. Guardado en `data/pruebas/product-probe/`:
 
 - `flyers.html`: respuesta original (sha256 `7cd74ae3…c6c7`).
 - `flyers.flight.txt`: los datos incrustados, ya descodificados.
@@ -61,7 +61,7 @@ que citaba dos que no eran ciertas: `delivery_text_translated` sí existe y el p
 Nuevo `app/parsers/product_page.py`: extrae de un HTML guardado la configuración por defecto y su matriz.
 Se excluyen de la identidad de la configuración `quantity` y `shipping_type`, porque la matriz los recorre.
 `valid_until` = observación + 31 días: es nuestro plazo de refresco, no una promesa de Print24.
-Comando local (sin red): `main.py --db <bd> import-page data/product-probe/flyers.html --url <url>`.
+Comando local (sin red): `main.py --db <bd> import-page data/pruebas/product-probe/flyers.html --url <url>`.
 
 ## Lo que NO sé todavía
 

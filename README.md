@@ -95,11 +95,11 @@ Desde esta carpeta, en PowerShell:
 python -m venv .venv
 uv --cache-dir .uv-cache pip install --python .venv/Scripts/python.exe -r requirements.txt
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe main.py --db data/demo.sqlite3 init-db
-.\.venv\Scripts\python.exe main.py --db data/demo.sqlite3 import-matrix tests/fixtures/price_matrix.synthetic.json tests/fixtures/context.synthetic.json
-.\.venv\Scripts\python.exe main.py --db data/demo.sqlite3 status
-.\.venv\Scripts\python.exe main.py --db data/demo.sqlite3 export data/exports/demo.json
-.\.venv\Scripts\python.exe main.py --db data/demo.sqlite3 export data/exports/demo.csv --format csv
+.\.venv\Scripts\python.exe main.py --db data/pruebas/demo.sqlite3 init-db
+.\.venv\Scripts\python.exe main.py --db data/pruebas/demo.sqlite3 import-matrix tests/fixtures/price_matrix.synthetic.json tests/fixtures/context.synthetic.json
+.\.venv\Scripts\python.exe main.py --db data/pruebas/demo.sqlite3 status
+.\.venv\Scripts\python.exe main.py --db data/pruebas/demo.sqlite3 export data/pruebas/exports/demo.json
+.\.venv\Scripts\python.exe main.py --db data/pruebas/demo.sqlite3 export data/pruebas/exports/demo.csv --format csv
 ```
 
 Si `python` apunta al alias de Microsoft Store, usar la ruta del intérprete instalado.

@@ -3,7 +3,7 @@
 Autorización: el usuario confirmó en el chat (27-10-2026) que tiene autorización para los seis proveedores.
 Es una declaración suya, no un contrato revisado. Siguen las mismas reglas: robots.txt, 5 s entre peticiones,
 sin redirecciones, sin cookies ni login, y parada ante un bloqueo. Una petición GET por proveedor, guardada
-en `data/provider-probe/` (HTML original, sin versionar). No se llamó a ningún endpoint de cálculo.
+en `data/pruebas/provider-probe/` (HTML original, sin versionar). No se llamó a ningún endpoint de cálculo.
 
 | Proveedor | Página probada | ¿Precio público leído? | Qué hay | Límite |
 |---|---|---|---|---|

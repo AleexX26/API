@@ -38,7 +38,7 @@ Cobertura comprobada:
 - Integridad referencial SQLite.
 - CLI completa: inicialización, importación, estado y exportaciones JSON/CSV.
 
-Se creó `data/demo.sqlite3` con un producto sintético, una configuración y un precio.
+Se creó `data/pruebas/demo.sqlite3` con un producto sintético, una configuración y un precio.
 No es una base de producción. No se han probado consultas externas, equivalencia
 con una tarifa real, catálogo completo, FastAPI, panel ni programación mensual.
 

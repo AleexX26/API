@@ -1,6 +1,6 @@
 @echo off
 rem Crea dist\API-para-otro-pc.zip con todo lo necesario (sin los entornos de Python, que se recrean en el otro PC).
-cd /d "%~dp0"
+cd /d "%~dp0.."
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*app.collectors*' } | ForEach-Object { Write-Host 'ATENCION: hay una recogida en marcha. Ejecuta antes parar_recogida.cmd'; exit 1 }"
 if errorlevel 1 ( pause & exit /b 1 )
 if exist ".venv\Scripts\python.exe" ".venv\Scripts\python.exe" -c "import sqlite3; d=sqlite3.connect('data/catalog.sqlite3', timeout=60); d.execute('PRAGMA wal_checkpoint(TRUNCATE)'); d.close()"

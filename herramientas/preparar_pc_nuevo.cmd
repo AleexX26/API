@@ -1,6 +1,6 @@
 @echo off
 rem Prepara este PC: crea el entorno de Python e instala lo necesario. Ejecutar UNA vez tras copiar la carpeta.
-cd /d "%~dp0"
+cd /d "%~dp0.."
 echo.
 echo === Comprobando Python ===
 python --version >nul 2>&1
@@ -35,5 +35,5 @@ echo.
 echo === Estado de lo recogido ===
 ".venv\Scripts\python.exe" -m app.collectors.status
 echo.
-echo Listo. Siguiente paso: reanudar_recogida.cmd
+echo Listo. Siguiente paso: abrir el comparador (Abrir comparador.cmd) o recoger datos (herramientas\recogida\reanudar_recogida.cmd)
 pause

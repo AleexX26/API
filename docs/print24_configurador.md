@@ -57,4 +57,4 @@ Conclusión: el fallo NO era la combinación de opciones ni la falta de un token
 cuerpo vacío a un cliente que no es un navegador (sesión previa, cabeceras o detección de clientes automáticos).
 Imitar un navegador para sortearlo sería evadir esa detección, así que no se hace. Vías legítimas: el acceso oficial
 (USS-Connect, operación `getprice`, ver `docs/investigacion_api.md`) o un archivo de tarifas pedido a Print24.
-Peticiones guardadas en `data/api-probe/` (sin tokens ni cookies).
+Peticiones guardadas en `data/pruebas/api-probe/` (sin tokens ni cookies).

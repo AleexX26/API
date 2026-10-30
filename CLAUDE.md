@@ -5,6 +5,10 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 ## Stack
 - Python 3.12 (venv con `uv`), FastAPI + Uvicorn, SQLite, pytest. Web estática (`web/`) sin framework.
 
+## Estructura de carpetas
+- Raíz (solo lo de uso diario): `Abrir comparador.cmd`, `Abrir comparador para la oficina.cmd`, `web_server.py`, `main.py` (CLI antigua del importador), `README.md`, `CLAUDE.md`, `pyproject.toml`, `requirements*.txt`.
+- `app/` código · `web/` interfaz · `tests/` pruebas · `docs/` documentación · `config/` · `herramientas/` instalar, recoger y trasladar (scripts `.cmd`/`.bat`) · `data/` datos y caché (no va a Git; ver `data/README.md`) · `dist/` ZIP para otros PC (no va a Git).
+
 ## Arquitectura
 - `app/collectors/`: `discovery.py` (robots + sitemap + portada), `sitemaps.py` (URLs de catálogo Print24), `products.py` (fichas Print24 → matriz de precios), `specs.py` (etiquetas legibles, offline), `tuskamisetas.py`, `onlineprinters.py`, `printai.py`, `offers.py` (tabla común `supplier_offers`), `index_homepages.py` (índice de enlaces de los 6 proveedores), `variants.py` (variaciones de una opción cada vez de Print24; navegador; SIN PROBAR en la web real).
 - `app/parsers/`: `price_matrix.py` (formato real de Print24), `product_page.py` (extrae `calculationData` de Next.js).
@@ -20,8 +24,8 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 - Print24: `python -m app.collectors.sitemaps`, luego `python -m app.collectors.products` (171 productos, ~15 min), luego `python -m app.collectors.specs`.
 - Otros: `python -m app.collectors.<tuskamisetas|onlineprinters|printai> URL…`; Onlineprinters entero: `python -m app.collectors.onlineprinters` (usa el sitemap en caché).
 - Variaciones Print24 (navegador, entorno aparte `.venv-browser` con scrapling+playwright+Chromium, 719 MB en `%LOCALAPPDATA%\ms-playwright`): `.venv-browser\Scripts\python.exe -m app.collectors.variants --max-variations 3 URL`.
-- PC nuevo de cero (instala Git, Python, clona el repo, descomprime los datos y prepara el entorno): copiar solo `instalar_todo.bat` (y `API-datos.zip`) y hacer doble clic.
-- Traslado a otro PC y recogida larga: ver `docs/MIGRACION.md` (`preparar_pc_nuevo.cmd`, `reanudar_recogida.cmd`, `estado_recogida.cmd`, `parar_recogida.cmd`, `empaquetar_para_otro_pc.cmd`; `python -m app.collectors.status`).
+- PC nuevo de cero (instala Git, Python, clona el repo, descomprime los datos y prepara el entorno): copiar solo `herramientas/instalar_todo.bat` (y `API-datos.zip`) y hacer doble clic.
+- Recoger datos / traslado entre PC (todo en `herramientas/`, ver `herramientas/LEEME.md` y `docs/MIGRACION.md`): `recogida/reanudar_recogida.cmd`, `recogida/recoger_print24.cmd`, `recogida/estado_recogida.cmd`, `recogida/parar_recogida.cmd`, `preparar_pc_nuevo.cmd`, `empaquetar_para_otro_pc.cmd`; estado por consola: `python -m app.collectors.status`.
 - Dependencias de tests: `requirements.txt` + `requirements-web.txt`.
 
 ## Reglas de recogida (obligatorias)
@@ -31,6 +35,8 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 - Antes de ampliar de 3 productos de prueba a todo el catálogo de un proveedor, enseñar resultados y esperar confirmación.
 
 ## Decisiones
+
+- 2026-10-30: carpeta ordenada: los scripts de instalar/recoger/trasladar pasan de la raíz a `herramientas/` (y `herramientas/recogida/`), y los registros y pruebas sueltos de `data/` a `data/registros/anteriores/` y `data/pruebas/`. Los `.cmd` se colocan solos en la carpeta del proyecto (`cd /d "%~dp0.."`). En la raíz solo quedan los dos «Abrir comparador».
 - 2026-10-27: el «Catálogo completo» también tiene el modo «Tarjetas de visita (con filtros)»: mismo formulario (`/api/card-options`), enviado como JSON en `/api/catalog?cards=…` y filtrado con `entry_matches`.
 - 2026-10-27: el alcance de recogida pasa a «tarjetas de visita» (catálogo completo en pausa). Al buscar tarjetas, el formulario copia el configurador de Print24 (opciones leídas de su ficha en caché, `app/services/cards.py`) y filtra de verdad (`brief.strict`): solo salen fichas que cumplen todo; si no hay, la web lo dice. Prueba/individualización/diseños/empaquetado solo se piden a Print24. De Print24 solo hay precio de la configuración por defecto de cada ficha.
 - 2026-10-27: los precios de los proveedores distintos de Print24 van a una tabla común `supplier_offers` (`price_kind` unit|total, `tax_status`, `shipping`); nada se asume si la página no lo dice.
@@ -59,4 +65,4 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Última actualización
 
-2026-10-27
+2026-10-30

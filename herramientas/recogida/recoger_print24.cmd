@@ -1,9 +1,9 @@
 @echo off
 rem Recoge las fichas de Print24 que faltan (las ya descargadas salen de data\cache y no se vuelven a pedir).
 rem Pausa de 5 s entre peticiones, sin cookies. Ejecutalo en UN solo PC a la vez.
-cd /d "%~dp0"
+cd /d "%~dp0\..\.."
 if not exist ".venv\Scripts\python.exe" (
-  echo Falta el entorno. Ejecuta primero preparar_pc_nuevo.cmd
+  echo Falta el entorno. Ejecuta primero herramientas\preparar_pc_nuevo.cmd
   pause
   exit /b 1
 )
@@ -13,5 +13,5 @@ echo Recogiendo Print24... (no cierres esta ventana)
 echo Leyendo las caracteristicas de las fichas nuevas...
 ".venv\Scripts\python.exe" -m app.collectors.specs
 echo.
-echo Terminado. Mira el estado con estado_recogida.cmd
+echo Terminado. Mira el estado con herramientas\recogida\estado_recogida.cmd
 pause
