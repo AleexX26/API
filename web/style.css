@@ -82,3 +82,7 @@ label select+input{margin-top:6px}
 .other-tools{margin:28px 0 0;border-top:1px solid var(--border)}
 .other-tools>summary{cursor:pointer;font-weight:650;padding:16px 0;font-size:15px}
 @media(max-width:700px){.step{grid-template-columns:1fr}.more-grid{grid-template-columns:1fr}.tool-results{grid-template-columns:minmax(0,1fr)}}
+
+.chip-main{background:var(--teal);border:1px solid var(--teal);color:#fff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600}
+#finder{padding-bottom:4px}
+.suggestions .chip-main{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;font-size:12px;padding:5px 13px}

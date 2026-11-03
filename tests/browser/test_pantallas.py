@@ -60,6 +60,7 @@ def test_gramaje_distinto_sale_como_parecida_y_cualquiera_lo_quita(page):
 
 def test_pedido_de_cliente_rellena_los_botones(page):
     open_home(page)
+    page.click("#customer-box summary")
     page.fill("#customer-text", "Necesito 500 tarjetas de visita de 85x55 mm en papel de 300 g por las dos caras")
     page.click("#customer-go")
     expect(page.locator("#tool-summary")).to_contain_text("He entendido")
@@ -108,3 +109,22 @@ def test_anotar_un_precio_a_mano_y_borrarlo(page):
     finally:  # la base del servidor de pruebas se comparte entre casos
         for row in page.request.get(f"{page.base}/api/manual-prices").json()["items"]:
             page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})
+
+
+def test_el_buscador_cambia_entre_tarjetas_y_otros_productos(page):
+    open_home(page)
+    expect(page.locator("#cat-q")).to_be_visible()
+    page.fill("#cat-q", "flyers")
+    expect(page.locator("#cards-tool")).to_be_hidden()
+    expect(page.locator("#cat-table")).to_contain_text("Flyers")
+    page.fill("#cat-q", "")
+    expect(page.locator("#cards-tool")).to_be_visible()
+    page.fill("#cat-q", "tarjetas de visita")
+    expect(page.locator("#cards-tool")).to_be_visible()
+    expect(page.locator("#cat-extra")).to_be_hidden()
+    page.fill("#cat-q", "flyers")
+    page.click("#customer-box summary")
+    page.fill("#customer-text", "Necesito 500 tarjetas de visita")
+    page.click("#customer-go")  # un pedido de tarjetas vuelve a la pantalla guiada
+    expect(page.locator("#cards-tool")).to_be_visible()
+    expect(page.locator("#cat-q")).to_have_value("")
