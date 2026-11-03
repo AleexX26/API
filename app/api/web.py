@@ -194,7 +194,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
     def catalog_view(provider: str = "", q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
                      cards: str = Query("", max_length=1500), quantity: int | None = Query(None, ge=1, le=1000000),
                      max_days: int | None = Query(None, ge=1, le=180),
-                     sides: int | None = Query(None, ge=1, le=2)):
+                     sides: int | None = Query(None, ge=1, le=2), filters: str = Query("", max_length=2000)):
         if provider and provider not in IDS:
             raise HTTPException(422, "Proveedor desconocido")
         brief = None
@@ -204,7 +204,16 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
                 brief = Brief(query="tarjetas de visita", quantity=1, **data).model_dump()
             except (ValueError, TypeError):
                 raise HTTPException(422, "Filtros de tarjetas no válidos")
-        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed, sides, manual_items())
+        chosen = None
+        if filters:  # JSON {group: option}: the characteristics chosen in the guided screen of any product
+            try:
+                chosen = json.loads(filters)
+                valid = isinstance(chosen, dict) and len(chosen) <= 16 and all(isinstance(k, str) and isinstance(v, str) and len(k) <= 80 and len(v) <= 200 for k, v in chosen.items())
+            except ValueError:
+                valid = False
+            if not valid:
+                raise HTTPException(422, "Filtros no válidos")
+        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed, sides, manual_items(), chosen)
         data["general"] = general_links(seed, q)
         return data
 

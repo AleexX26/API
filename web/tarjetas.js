@@ -1,7 +1,10 @@
-// Tarjetas de visita: the guided tool. The usual choices are buttons, the rest are dropdowns, and everything starts on
-// the standard card (85 x 55 mm, 1 cara, 350 g estucado, sin acabado). Uses the helpers of app.js (loaded before this file).
+// The guided screen. The usual choices are buttons, the rest are dropdowns. Business cards start on the standard card
+// (85 x 55 mm, 1 cara, 350 g estucado, sin acabado); any other product gets the options its collected pages state, all on
+// "Cualquiera". Uses the helpers of app.js (loaded before this file).
 const STANDARD = {quantity: 100, format: '85 x 55 mm', pages: '1 cara', grams: '350 g/m²', paper_type: 'Estucado / cuché', surface: '', finishing: 'Sin', inks: 'cmyk', days: 0, type: 'Estándar', orientation: '', processing: 'Cortar'};
-const cardsTool = {state: {...STANDARD}, items: [], form: null, ticket: 0, apply: null, search: null};
+const cardsTool = {mode: 'cards', state: {...STANDARD}, items: [], form: null, ticket: 0, preset: null, apply: null, search: null, onQuery: null};
+const generic = {query: '', quantity: 100, days: 0, filters: {}, form: {groups: []}, ticket: 0};
+const GENERIC_QUANTITIES = [1, 10, 50, 100, 250, 500, 1000, 5000];
 const QUANTITIES = [100, 250, 500, 1000, 2500];
 const INK_CHOICES = [['cmyk', 'Color (CMYK)'], ['special', 'Pantone, oro o plata'], ['', 'Cualquiera']];
 const DAY_CHOICES = [[0, 'Cualquiera'], [3, 'Hasta 3 días'], [7, 'Hasta 7 días'], [10, 'Hasta 10 días']];
@@ -30,7 +33,7 @@ function pill(key, value, label, on, tag) {
   return `<button type="button" class="pill${on ? ' on' : ''}" data-key="${key}" data-value="${esc(value)}" aria-pressed="${on}">${esc(label)}${tag ? ` <small>${tag}</small>` : ''}</button>`;
 }
 function stepHtml(field) {
-  const state = cardsTool.state, all = optionsOf(field), current = state[field.key];
+  const all = field.all || optionsOf(field), current = field.generic ? (generic.filters[field.name] || '') : cardsTool.state[field.key];
   const popular = field.popular.map(p => field.prefix ? all.find(o => o.startsWith(p)) : all.find(o => o === p)).filter(Boolean);
   const rest = all.filter(o => !popular.includes(o));
   let html = '';
@@ -43,27 +46,39 @@ function stepHtml(field) {
   return `<div class="step"><div class="step-label">${field.label}</div><div class="pills" role="group" aria-label="${field.label}">${html}</div></div>`;
 }
 function quantityHtml() {
-  const q = cardsTool.state.quantity, custom = !QUANTITIES.includes(q);
-  return `<div class="step"><div class="step-label">¿Cuántas?</div><div class="pills" role="group" aria-label="Cantidad">${QUANTITIES.map(n => pill('quantity', n, n.toLocaleString('es-ES'), q === n, n === STANDARD.quantity ? 'estándar' : '')).join('')}<input class="pill-input${custom ? ' on' : ''}" type="number" min="1" max="1000000" data-key="quantity" aria-label="Otra cantidad" placeholder="Otra cantidad" value="${custom ? q : ''}"></div></div>`;
+  const any = cardsTool.mode === 'generic', list = any ? GENERIC_QUANTITIES : QUANTITIES, q = any ? generic.quantity : cardsTool.state.quantity, custom = !list.includes(q);
+  return `<div class="step"><div class="step-label">¿Cuántas?</div><div class="pills" role="group" aria-label="Cantidad">${list.map(n => pill('quantity', n, n.toLocaleString('es-ES'), q === n, !any && n === STANDARD.quantity ? 'estándar' : '')).join('')}<input class="pill-input${custom ? ' on' : ''}" type="number" min="1" max="1000000" data-key="quantity" aria-label="Otra cantidad" placeholder="Otra cantidad" value="${custom ? q : ''}"></div></div>`;
 }
 function inksHtml() {
   const current = cardsTool.state.inks;
   return `<div class="step"><div class="step-label">Colores</div><div class="pills" role="group" aria-label="Colores">${INK_CHOICES.map(([value, label]) => pill('inks', value, label, current === value, value === STANDARD.inks ? 'estándar' : '')).join('')}</div></div>`;
 }
 function daysHtml() {
-  const d = cardsTool.state.days;
+  const d = cardsTool.mode === 'generic' ? generic.days : cardsTool.state.days;
   return `<div class="step"><div class="step-label">Entrega</div><div class="pills" role="group" aria-label="Entrega">${DAY_CHOICES.map(([n, label]) => pill('days', n, label, d === n)).join('')}</div></div>`;
 }
 function moreHtml() {
   const form = cardsTool.form || {}, state = cardsTool.state;
   return `<details class="tool-more"><summary>Más opciones</summary><div class="more-grid">${MORE.map(([key, label, source]) => `<label>${label}<select data-key="${key}"><option value="">Cualquiera</option>${(form[source] || []).map(o => `<option${o === state[key] ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`).join('')}</div></details>`;
 }
+function genericFields() {
+  return (generic.form.groups || []).slice(0, 6).map(g => ({generic: true, key: 'g:' + g.name, name: g.name, label: g.name, popular: g.options.slice(0, 4), all: g.options, any: true}));
+}
 function renderSteps() {
   const box = $('tool-steps'), open = box.querySelector('.tool-more')?.open;
+  if (cardsTool.mode === 'generic') {
+    const fields = genericFields();
+    box.innerHTML = quantityHtml() + fields.map(stepHtml).join('') + daysHtml()
+      + `${fields.length ? '' : '<p class="auto-note">Todavía no hay características recogidas para este producto: se muestran todos sus precios.</p>'}<div class="step-actions"><button type="button" class="outline" id="tool-reset">↺ Quitar las opciones</button></div>`;
+    return;
+  }
   box.innerHTML = quantityHtml() + FIELDS.slice(0, 2).map(stepHtml).join('') + inksHtml() + FIELDS.slice(2).map(stepHtml).join('') + daysHtml() + moreHtml() + '<div class="step-actions"><button type="button" class="outline" id="tool-reset">↺ Volver a lo estándar</button></div>';
   if (open) box.querySelector('.tool-more').open = true;
 }
 function describeChoice() {
+  if (cardsTool.mode === 'generic') {
+    return [generic.query, `${generic.quantity.toLocaleString('es-ES')} uds`, ...Object.values(generic.filters), generic.days ? `entrega en ${generic.days} días como máximo` : ''].filter(Boolean).join(' · ');
+  }
   const s = cardsTool.state, paper = [s.grams ? shown('grams', s.grams) : '', s.paper_type].filter(Boolean).join(' ') || 'cualquier papel';
   return [`${s.quantity.toLocaleString('es-ES')} tarjetas`, shown('format', s.format).replace('Cualquiera', 'cualquier tamaño'), s.pages, s.inks === 'cmyk' ? 'a todo color' : s.inks === 'special' ? 'colores especiales' : '', paper, s.surface, s.finishing ? shown('finishing', s.finishing).toLowerCase() : '', s.days ? `entrega en ${s.days} días como máximo` : ''].filter(Boolean).join(' · ');
 }
@@ -116,7 +131,7 @@ function offerCard(group, best, qty, badges) {
  <p class="offer-what">${esc(whatIs(best))}</p>
  ${best.near ? `<p class="offer-near">Es el precio de la configuración por defecto de la ficha: ${esc(best.near)}. En la web quizá se pueda pedir lo que quieres con otro precio.</p>` : ''}
  <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}</div>
- ${others.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length})</summary><div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio con IVA</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div></details>` : ''}</article>`;
+ ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio con IVA</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
 }
 function bestBanner(groups, qty) {
   const priced = groups.map(g => ({g, item: g.best})).filter(x => offerTotal(x.item) !== null && x.item.tax_status !== 'unknown');
@@ -131,7 +146,7 @@ function bestBanner(groups, qty) {
   }
   return `<div class="best-banner">${html}</div>`;
 }
-function renderResults(items, qty) {
+function renderResults(items, qty, links = []) {
   cardsTool.items = items;
   const byProvider = new Map();
   for (const item of items) {
@@ -144,10 +159,12 @@ function renderResults(items, qty) {
   }).sort((a, b) => byRank(a.best, b.best));
   $('tool-best').innerHTML = bestBanner(groups, qty);
   const cheapestId = groups.find(g => offerTotal(g.best) !== null && g.best.tax_status !== 'unknown')?.provider.id;
+  groups.forEach(g => g.links = links.filter(l => l.provider === g.provider.id));
   $('tool-results').innerHTML = groups.length ? groups.map(g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best.near ? ['best'] : [])).join('')
-    : '<div class="empty-box"><p><strong>Ninguna ficha recogida tiene todo esto.</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos (por ejemplo el gramaje o el acabado), o vuelve a lo estándar.</p></div>';
+    : `<div class="empty-box"><p><strong>${cardsTool.mode === 'generic' ? 'No hay nada recogido con ese nombre y esas opciones.' : 'Ninguna ficha recogida tiene todo esto.'}</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos${cardsTool.mode === 'generic' ? ' o con otra palabra' : ' (por ejemplo el gramaje o el acabado), o vuelve a lo estándar'}.</p></div>`;
 }
 cardsTool.search = async function () {
+  if (cardsTool.mode === 'generic') return searchGeneric();
   const state = cardsTool.state, qty = Number(state.quantity) || STANDARD.quantity, ticket = ++cardsTool.ticket;
   $('tool-summary').textContent = 'Buscando: ' + describeChoice();
   const params = new URLSearchParams({q: 'tarjetas de visita', limit: 200, offset: 0, quantity: qty, cards: JSON.stringify(toolBrief())});
@@ -160,6 +177,26 @@ cardsTool.search = async function () {
     $('tool-results').innerHTML = `<p class="auto-note warn">No se pudo buscar: ${esc(error.message)}</p>`;
   }
 };
+async function searchGeneric() {
+  const qty = generic.quantity || 100, ticket = ++cardsTool.ticket;
+  $('tool-summary').textContent = 'Buscando: ' + describeChoice();
+  const params = new URLSearchParams({q: generic.query, limit: 200, offset: 0, quantity: qty});
+  if (Object.keys(generic.filters).length) params.set('filters', JSON.stringify(generic.filters));
+  if (generic.days) params.set('max_days', generic.days);
+  try {
+    const data = await api('/api/catalog?' + params);
+    if (ticket !== cardsTool.ticket) return;
+    renderResults(data.items, qty, data.unpriced || []);
+  } catch (error) {
+    $('tool-results').innerHTML = `<p class="auto-note warn">No se pudo buscar: ${esc(error.message)}</p>`;
+  }
+}
+function chrome() {
+  const generic_ = cardsTool.mode === 'generic';
+  $('tool-title').textContent = generic_ ? `Resultados para «${generic.query}»` : 'Tarjetas de visita';
+  $('tool-best').innerHTML = '';
+  $('tool-results').innerHTML = '';
+}
 function manualFill() {
   const s = cardsTool.state;
   return {format: s.format, grams: (s.grams.match(/\d+/) || [''])[0], paper_type: s.paper_type, surface: s.surface, sides: /2/.test(s.pages) ? '2' : '1', finishing: s.finishing || 'Sin', quantity: s.quantity};
@@ -174,6 +211,10 @@ function dimensions(text) {
 // What a customer's text asked for, set on the buttons (the person can still change anything).
 cardsTool.apply = function (item) {
   const s = cardsTool.state, form = cardsTool.form || {}, finishes = item.finishes || [];
+  if (cardsTool.mode !== 'cards') {
+    cardsTool.mode = 'cards';
+    chrome();
+  }
   Object.assign(s, STANDARD);
   if (item.quantity) s.quantity = item.quantity;
   if (item.sides) s.pages = item.sides === 2 ? '2 caras' : '1 cara';
@@ -188,6 +229,16 @@ cardsTool.apply = function (item) {
   return cardsTool.search();
 };
 function change(key, value) {
+  if (cardsTool.mode === 'generic') {
+    if (key === 'quantity') generic.quantity = Math.max(1, Math.min(1000000, Number(value) || 100));
+    else if (key === 'days') generic.days = Number(value);
+    else if (key.startsWith('g:')) {
+      if (value) generic.filters[key.slice(2)] = value;
+      else delete generic.filters[key.slice(2)];
+    }
+    renderSteps();
+    return cardsTool.search();
+  }
   const state = cardsTool.state;
   state[key] = key === 'quantity' ? Math.max(1, Math.min(1000000, Number(value) || STANDARD.quantity)) : key === 'days' ? Number(value) : value;
   renderSteps();
@@ -205,7 +256,8 @@ window.initCardsTool = async function () {
     const pillButton = event.target.closest('.pill');
     if (pillButton) change(pillButton.dataset.key, pillButton.dataset.value);
     if (event.target.id === 'tool-reset') {
-      Object.assign(cardsTool.state, STANDARD);
+      if (cardsTool.mode === 'generic') Object.assign(generic, {filters: {}, quantity: 100, days: 0});
+      else Object.assign(cardsTool.state, STANDARD);
       renderSteps();
       cardsTool.search();
     }
@@ -219,5 +271,36 @@ window.initCardsTool = async function () {
     const button = event.target.closest('.tool-manual');
     if (button) openManual(cardsTool.items[Number(button.dataset.index)], manualFill());
   });
-  cardsTool.search();
+  cardsTool.onQuery($('cat-q').value.trim());
+};
+// What was typed in the finder decides the screen: nothing or business cards = the standard card; anything else = that product.
+cardsTool.onQuery = async function (text) {
+  if (!text || isCardText(text)) {
+    if (cardsTool.mode !== 'cards') {
+      cardsTool.mode = 'cards';
+      chrome();
+      renderSteps();
+    }
+    return cardsTool.search();
+  }
+  if (cardsTool.mode !== 'generic' || generic.query !== text) {
+    const ticket = ++generic.ticket;
+    cardsTool.mode = 'generic';
+    Object.assign(generic, {query: text, filters: {}, quantity: 100, days: 0});
+    try {
+      generic.form = await api('/api/product-options?q=' + encodeURIComponent(text));
+    } catch {
+      generic.form = {groups: []};
+    }
+    if (ticket !== generic.ticket) return;
+    chrome();
+  }
+  if (cardsTool.preset) {  // what a customer's text asked for
+    const {quantity, days} = cardsTool.preset;
+    if (quantity) generic.quantity = quantity;
+    if (days) generic.days = (DAY_CHOICES.find(([n]) => n >= days) || DAY_CHOICES[DAY_CHOICES.length - 1])[0];
+    cardsTool.preset = null;
+  }
+  renderSteps();
+  return cardsTool.search();
 };

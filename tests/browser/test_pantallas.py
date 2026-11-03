@@ -111,20 +111,25 @@ def test_anotar_un_precio_a_mano_y_borrarlo(page):
             page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})
 
 
-def test_el_buscador_cambia_entre_tarjetas_y_otros_productos(page):
+def test_el_buscador_da_la_misma_pantalla_para_cualquier_producto(page):
     open_home(page)
     expect(page.locator("#cat-q")).to_be_visible()
     page.fill("#cat-q", "flyers")
-    expect(page.locator("#cards-tool")).to_be_hidden()
-    expect(page.locator("#cat-table")).to_contain_text("Flyers")
+    expect(page.locator("#tool-title")).to_contain_text("flyers")
+    expect(page.locator("#tool-results .offer").first).to_be_visible()
+    formato = page.locator('.pill[data-key="g:Formato"][data-value]:not([data-value=""])').first
+    expect(formato).to_be_visible()  # las opciones salen de lo que dicen las fichas recogidas
+    value = formato.get_attribute("data-value")
+    formato.click()
+    expect(page.locator("#tool-summary")).to_contain_text(value)
+    pressed(page, "quantity", "500").click()
+    expect(page.locator("#tool-summary")).to_contain_text("500 uds")
     page.fill("#cat-q", "")
-    expect(page.locator("#cards-tool")).to_be_visible()
-    page.fill("#cat-q", "tarjetas de visita")
-    expect(page.locator("#cards-tool")).to_be_visible()
-    expect(page.locator("#cat-extra")).to_be_hidden()
+    expect(page.locator("#tool-title")).to_have_text("Tarjetas de visita")
+    expect(pressed(page, "format", "85 x 55 mm")).to_have_attribute("aria-pressed", "true")
     page.fill("#cat-q", "flyers")
     page.click("#customer-box summary")
     page.fill("#customer-text", "Necesito 500 tarjetas de visita")
     page.click("#customer-go")  # un pedido de tarjetas vuelve a la pantalla guiada
-    expect(page.locator("#cards-tool")).to_be_visible()
+    expect(page.locator("#tool-title")).to_have_text("Tarjetas de visita")
     expect(page.locator("#cat-q")).to_have_value("")

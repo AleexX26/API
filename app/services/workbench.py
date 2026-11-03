@@ -372,6 +372,9 @@ def _read_items(catalog: Path) -> tuple[list[dict], dict]:
             for r in db.execute("SELECT * FROM supplier_offers ORDER BY provider, product_name, group_label, variant, quantity"):
                 groups.setdefault((r["provider"], r["product_url"], r["group_label"], r["variant"]), []).append(r)
             for (prov, url, group, variant), rows in groups.items():
+                rows = [r for r in rows if Decimal(r["price"]) > 0]  # a page that shows 0,00 € has no price yet (custom size, to be quoted)
+                if not rows:
+                    continue
                 best = min(rows, key=lambda r: Decimal(r["price"]))
                 items.append({"provider": prov, "title": rows[0]["product_name"] + (f" · {variant}" if variant else ""), "url": url,
                               "price_kind": rows[0]["price_kind"], "tax_status": rows[0]["tax_status"], "shipping": rows[0]["shipping"],
@@ -393,7 +396,7 @@ def _read_items(catalog: Path) -> tuple[list[dict], dict]:
 
 
 def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None, max_days: int | None = None,
-                    seed: Path | None = None, sides: int | None = None, extra: list[dict] | None = None) -> dict:
+                    seed: Path | None = None, sides: int | None = None, extra: list[dict] | None = None, filters: dict | None = None) -> dict:
     """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
     empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
     if catalog is None or not Path(catalog).exists():
@@ -428,6 +431,9 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
         extra = set(search_tokens(item).split()) if words else set()  # 85x55, a5, 350g: matched whole, never as part of other words
         if all(word in extra or any(t in haystack for t in terms_for(word)) for word in words):
             chosen.append(item)
+    if filters:  # characteristics chosen for any product (group name -> option): only pages that state them
+        from app.services.products import generic_matches
+        chosen = [i for i in chosen if generic_matches(i, filters)]
     chosen.sort(key=lambda i: (order.get(i["provider"], 99), i["title"]))
     if sides:  # the customer asked for 1 or 2 printed sides: only pages that say exactly that
         from app.services.cards import sides_in

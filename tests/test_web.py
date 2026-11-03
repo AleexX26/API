@@ -621,3 +621,27 @@ def test_manual_prices_are_only_written_from_the_host_pc(tmp_path):
     with TestClient(create_app(tmp_path / "work.sqlite3", seed, tmp_path / "c.sqlite3", lan=True), client=("192.168.1.20", 5000)) as client:
         assert client.post("/api/manual-prices", json=MANUAL, headers={"host": "192.168.1.10:8765"}).status_code == 403
         assert client.get("/api/manual-prices", headers={"host": "192.168.1.10:8765"}).status_code == 200
+
+
+def test_catalog_filters_by_characteristics_for_any_product(tmp_path):
+    cat = _flyer_catalog(tmp_path)
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, cat)) as client:
+        everything = client.get("/api/catalog", params={"q": "flyers"}).json()
+        only_a6 = client.get("/api/catalog", params={"q": "flyers", "filters": json.dumps({"Formato": "A6"})}).json()
+        assert only_a6["total"] < everything["total"] and only_a6["total"] >= 1
+        assert all("A6" in i["title"] or any("A6" in x["label"] for x in i["spec"]) for i in only_a6["items"])
+        assert client.get("/api/catalog", params={"q": "flyers", "filters": "no es json"}).status_code == 422
+        assert client.get("/api/catalog", params={"q": "flyers", "filters": json.dumps(["x"])}).status_code == 422
+
+
+def test_a_zero_price_is_not_a_price(tmp_path):
+    from app.collectors import offers as store
+    cat = tmp_path / "catalog.sqlite3"
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t", "quantity": 100, "kind": "total"}
+    store.replace_offers(db, "onlineprinters", "https://x.es/p/flyers-a", "Flyers formato personalizado", [{**base, "price": "0.00"}], "2026-10-27", [])
+    store.replace_offers(db, "onlineprinters", "https://x.es/p/flyers-b", "Flyers A5", [{**base, "price": "30.00"}], "2026-10-27", [])
+    db.close()
+    assert [i["title"] for i in catalog_listing(cat, q="flyers")["items"]] == ["Flyers A5"]

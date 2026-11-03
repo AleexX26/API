@@ -71,8 +71,7 @@ let catPage=0;const CAT_SIZE=50;
 const CAT_CARD_FIELDS=CARD_LAYOUT.flatMap(([,fields])=>fields).filter(([key])=>key!=='quantity'&&key!=='paper');
 const catCardOn=()=>$('cat-kind').value==='cards';
 // Nothing typed, or business cards: the guided card tool. Any other product: the catalog results.
-const cardsMode=()=>{const t=$('cat-q').value.trim();return !t||isCardText(t);};
-function syncMode(){const on=cardsMode();$('cards-tool').hidden=!on;$('cat-extra').hidden=on;return on;}
+
 const CAT_MAIN_FIELDS=[['type','Tipo'],['format','Tamaño'],['pages','Caras'],['grams','Gramaje'],['paper_type','Tipo de papel'],['surface','Mate / brillo'],['finishing','Acabado']];
 const pickOption=(key,start)=>{const o=[...($('cc-'+key)?.options||[])].find(x=>x.value.startsWith(start));return o?o.value:'';};
 function setCardDefaults(clear){if(!$('cc-format'))return;$('cc-type').value=clear?'':pickOption('type','Estándar');$('cc-format').value=clear?'':pickOption('format','85 x 55');$('cc-pages').value=clear?'':pickOption('pages','1 cara');$('cc-grams').value=clear?'':pickOption('grams','350');$('cc-paper_type').value=clear?'':pickOption('paper_type','Estucado');$('cc-finishing').value=clear?'':pickOption('finishing','Sin');}
@@ -105,7 +104,7 @@ function renderCompare(c,qty){const box=$('cat-compare');if(!c){box.innerHTML=''
  ${similar.length?`<h4>Parecidas (mismo tamaño, gramaje y caras, pero papel o acabado distinto)</h4>${cmpTable(c,similar,qty,names,true)}`:''}
  ${c.excluded?`<p class="auto-note">${c.excluded} fichas no entran en la comparación porque no son comparables (por ejemplo, ropa sin personalizar).</p>`:''}${c.skipped?`<p class="auto-note">${c.skipped} fichas no entran por falta de formato, papel o precio a esa cantidad.</p>`:''}</div>`;}
 let catSize=50,catSides=null;
-async function loadCatalog(page=0){catPage=page;const text=$('cat-q').value.trim();if(syncMode())return;const cardsOn=catCardOn();catSize=(text||cardsOn)?200:CAT_SIZE;const params=new URLSearchParams({limit:catSize,offset:page*catSize});if($('cat-provider').value)params.set('provider',$('cat-provider').value);const qty=Math.max(1,Number($('cat-qty').value)||500),filtered=!!text||cardsOn;if(text||cardsOn)params.set('q',text||'tarjetas de visita');if(filtered)params.set('quantity',qty);const days=Number($('cat-days').value);if(filtered&&days>0)params.set('max_days',days);if(filtered&&catSides)params.set('sides',catSides);
+async function loadCatalog(page=0){catPage=page;const text=$('cat-q').value.trim();if(typeof cardsTool!=='undefined'){cardsTool.onQuery(text);return;}const cardsOn=catCardOn();catSize=(text||cardsOn)?200:CAT_SIZE;const params=new URLSearchParams({limit:catSize,offset:page*catSize});if($('cat-provider').value)params.set('provider',$('cat-provider').value);const qty=Math.max(1,Number($('cat-qty').value)||500),filtered=!!text||cardsOn;if(text||cardsOn)params.set('q',text||'tarjetas de visita');if(filtered)params.set('quantity',qty);const days=Number($('cat-days').value);if(filtered&&days>0)params.set('max_days',days);if(filtered&&catSides)params.set('sides',catSides);
  try{const share=new URLSearchParams();if(text)share.set('q',text);if($('cat-provider').value)share.set('p',$('cat-provider').value);history.replaceState(null,'',share.toString()?'?'+share:location.pathname);}catch{}
  await updateCatalogMode();if(catCardOn())params.set('cards',JSON.stringify(catCardBrief()));
  try{const data=await api('/api/catalog?'+params);catItems=data.items;const names=Object.fromEntries(providers.map(p=>[p.id,p.name]));const total=Object.values(data.counts).reduce((a,b)=>a+b,0);
@@ -165,9 +164,9 @@ async function init(){try{providers=(await api('/api/providers')).providers;visi
 function renderApplied(){const el=$('cat-applied');el.innerHTML=catSides?`<button type="button" class="chip-x" id="cat-sides-x">Solo ${catSides===2?'las dos caras':'una cara'} ✕</button>`:'';$('cat-sides-x')?.addEventListener('click',()=>{catSides=null;renderApplied();loadCatalog(0);});}
 let customerItems=[];
 async function applyRequest(i){const item=customerItems[i];
- if(isCardText(item.query)){$('cat-q').value='';catSides=null;renderApplied();syncMode();document.querySelectorAll('#customer-items [data-item]').forEach(b=>b.classList.toggle('active',Number(b.dataset.item)===i));await cardsTool.apply(item);$('tool-summary').textContent='He entendido: '+item.understood+'. Puedes cambiar lo que no sea correcto con los botones.';$('tool-steps').scrollIntoView({block:'start'});return;}
+ if(isCardText(item.query)){$('cat-q').value='';catSides=null;renderApplied();document.querySelectorAll('#customer-items [data-item]').forEach(b=>b.classList.toggle('active',Number(b.dataset.item)===i));await cardsTool.apply(item);$('tool-summary').textContent='He entendido: '+item.understood+'. Puedes cambiar lo que no sea correcto con los botones.';$('tool-steps').scrollIntoView({block:'start'});return;}
 $('cat-q').value=item.query;if(item.quantity)$('cat-qty').value=item.quantity;$('cat-days').value=item.max_days||'';catSides=item.sides||null;renderApplied();remember();
- document.querySelectorAll('#customer-items [data-item]').forEach(b=>b.classList.toggle('active',Number(b.dataset.item)===i));await loadCatalog(0);$('cat-compare').scrollIntoView({block:'start'});}
+ document.querySelectorAll('#customer-items [data-item]').forEach(b=>b.classList.toggle('active',Number(b.dataset.item)===i));if(typeof cardsTool!=='undefined')cardsTool.preset={quantity:item.quantity,days:item.max_days};await loadCatalog(0);$('cards-tool').scrollIntoView({block:'start'});}
 async function readCustomer(){const text=$('customer-text').value.trim(),box=$('customer-items');if(text.length<3){box.textContent='Pega primero el texto del cliente.';return;}
  box.textContent='Leyendo…';try{const d=await api('/api/parse-request',{text});customerItems=d.items;
   if(!customerItems.length){box.innerHTML='<p class="auto-note">No he reconocido ningún producto en ese texto. Por ahora solo reconozco pedidos de tarjetas de visita.</p>';return;}
