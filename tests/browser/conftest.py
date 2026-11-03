@@ -37,7 +37,7 @@ def _catalog(tmp_path):
     ):
         store.replace_offers(db, provider, f"https://example.test/{provider}/{slug}", title,
                              [{**base, "quantity": 500, "kind": "total", "price": "30.00"}, {**base, "quantity": 1000, "kind": "total", "price": "45.00"}],
-                             "2026-10-27", [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}])
+                             "2026-10-27", [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}, {"group": "Impresión", "label": "4+0 una cara"}])
     db.close()
     return cat
 

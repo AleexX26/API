@@ -50,3 +50,25 @@ def test_menu_visible_tras_scroll(page):
         assert nav and nav["x"] >= 0 and nav["y"] >= 0, "el menú lateral debe seguir visible"
     else:
         assert nav is not None  # en móvil basta con que exista y no tape la página
+
+
+def test_tarjetas_traen_los_valores_de_base_y_se_pueden_cambiar(page):
+    open_home(page)
+    page.fill("#cat-q", "tarjetas de visita")
+    expect(page.locator("#cc-format")).to_have_value("85 x 55 mm")
+    expect(page.locator("#cc-pages")).to_have_value("1 cara")
+    expect(page.locator("#cc-paper")).to_have_value("350 g/m² Papel estucado")
+    expect(page.locator("#cat-table")).to_contain_text("Onlineprinters")
+    expect(page.locator("#cat-table")).not_to_contain_text("Printai")  # su tarjeta es de 300 g
+    page.select_option("#cc-paper", "")
+    expect(page.locator("#cat-table")).to_contain_text("Printai")
+
+
+def test_no_salen_proveedores_sin_productos(page):
+    open_home(page)
+    opciones = page.locator("#cat-provider option").all_inner_texts()
+    assert "Truyol" not in opciones and "Stricker" not in opciones
+    assert "Onlineprinters" in opciones
+    toggles = page.locator("#provider-toggles").inner_text()
+    assert "Truyol" not in toggles and "Stricker" not in toggles
+    assert "Truyol" not in page.locator("#cards").inner_text()

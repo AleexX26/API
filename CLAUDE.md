@@ -37,6 +37,7 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Decisiones
 
+- 2026-11-03: pulido de tarjetas de visita en el catálogo: al escribir «tarjetas de visita» se activa solo el modo con filtros, con tres campos a la vista (Tamaño, Caras, Papel; el resto en «Más características») y valores de base 85 x 55 mm, 1 cara y 350 g/m² papel estucado (`setCardDefaults` en `app.js`; con «Cualquiera» se quitan). Con ese papel solo aparece Print24 (Onlineprinters y Printai tienen 300 g). Al aplicar el pedido de un cliente los filtros se ponen en «Cualquiera» porque tamaño, gramaje y caras ya van en las palabras de búsqueda. Los proveedores sin productos recogidos (hoy Truyol y Stricker) se ocultan en desplegable, interruptores, resumen y tarjetas: `/api/providers` devuelve `products` por proveedor y la web usa `visible`; en la búsqueda también se ocultan los que no tienen ninguna ficha coincidente (salvo que tengan presupuestos guardados). Si no hay página de Print24 en caché, `card_form` ofrece «1 cara / 2 caras».
 - 2026-10-30: pruebas de navegador con Playwright en `tests/browser/` (servidor propio con catálogo mínimo; usa el puerto 8765 y, si está ocupado, modo red local en otro, porque las escrituras solo aceptan ese origen). Con ellas se oscurecieron los grises de `web/style.css` que no llegaban a contraste 4,5:1. La web no tiene tema oscuro propio: el caso «oscuro» solo comprueba que no se rompe con esa preferencia del sistema. Las fixtures no se pueden esperar con `wait_for_function(texto)` por la CSP (sin `unsafe-eval`): usar `expect(locator)`.
 - 2026-10-30: la comparación es honesta: filas «idénticas» (mismo tamaño, gramaje, familia de papel, acabado y caras) y filas «parecidas» (mismo tamaño, gramaje y caras pero papel o acabado distinto, con el detalle de cada una); lo no comparable (`comparable:false`, p. ej. ropa sin personalizar de TusKamisetas) queda fuera y se avisa. Cada precio dice si el envío va incluido (`shipping`). Si la cantidad está entre dos tramos se estima con el precio por unidad de los vecinos y se marca «estimado entre N y M uds» (nunca fuera del rango). Lógica en `app/services/compare.py` (`price_at`, `compare`).
 
@@ -69,4 +70,4 @@ Recoge precios públicos de imprentas (Print24, Onlineprinters, Printai, TusKami
 
 ## Última actualización
 
-2026-10-30
+2026-11-03

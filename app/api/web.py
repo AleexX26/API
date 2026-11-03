@@ -148,7 +148,8 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
 
     @app.get("/api/providers")
     def providers():
-        return {"providers": PROVIDERS}
+        counts = catalog_listing(catalog, limit=1)["counts"]  # providers with nothing collected are hidden by the web
+        return {"providers": [{**p, "products": counts.get(p["id"], 0)} for p in PROVIDERS]}
 
     @app.get("/api/catalog")
     def catalog_view(provider: str = "", q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),

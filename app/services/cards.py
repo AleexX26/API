@@ -50,6 +50,8 @@ def card_form(catalog: Path | None) -> dict:
                     if label and label not in form[key]:
                         form[key].append(label)
     add_other_providers(catalog, form)
+    if not form["pages"]:  # no Print24 page in the cache: the sides still have to be choosable
+        form["pages"] = ["1 cara", "2 caras"]
     return {"types": list(CARD_TYPES), **form}
 
 

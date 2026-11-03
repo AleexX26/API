@@ -528,3 +528,14 @@ def test_parse_request_endpoint_and_sides_filter(tmp_path):
         both = client.get('/api/catalog', params={"q": items[0]["query"], "quantity": 500, "provider": "onlineprinters"}).json()
         two = client.get('/api/catalog', params={"q": items[0]["query"], "quantity": 500, "provider": "onlineprinters", "sides": 2}).json()
         assert both["total"] == 2 and [i["url"].rsplit("/", 1)[-1] for i in two["items"]] == ["tarjetas-visita-4-4-85x55mm"]
+
+
+def test_providers_say_how_many_products_each_has(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    cat = tmp_path / "catalog.sqlite3"
+    _flyer_catalog(tmp_path)
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, tmp_path / "catalog.sqlite3")) as client:
+        counts = {p["id"]: p["products"] for p in client.get("/api/providers").json()["providers"]}
+    assert counts["print24"] == 1 and counts["onlineprinters"] == 2
+    assert counts["truyol"] == 0 and counts["stricker"] == 0
