@@ -179,3 +179,17 @@ def test_the_web_price_is_used_where_the_sheet_has_it_and_the_tariff_elsewhere(t
     assert report["MANTELES INDIVIDUALES"]["precio"] == "web" and report["BOLSAS papel"]["precio"] == "icon"
     row = sqlite3.connect(db).execute("SELECT price FROM supplier_offers WHERE product_name LIKE 'Manteles%' AND quantity=1000").fetchone()
     assert row[0] == "138"
+
+
+def test_a_wrong_excel_does_not_wipe_the_loaded_products(tmp_path):
+    import sqlite3
+    import pytest
+    book, wrong, db = tmp_path / "t.xlsx", tmp_path / "w.xlsx", tmp_path / "c.sqlite3"
+    make_book(book, {"BOLSAS papel": BAGS, "TARJETAS DE VISITA": ROWS})
+    tariff.load_rest(db, book)
+    count = lambda: sqlite3.connect(db).execute("SELECT COUNT(*) FROM supplier_offers").fetchone()[0]
+    before = count()
+    make_book(wrong, {"TARJETAS DE VISITA": ROWS})  # none of the "rest" sheets
+    with pytest.raises(ValueError):
+        tariff.load_rest(db, wrong)
+    assert count() == before > 0

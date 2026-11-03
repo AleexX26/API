@@ -30,7 +30,7 @@ function optionsOf(field) {
   return form[field.key] || [];
 }
 function pill(key, value, label, on, tag) {
-  return `<button type="button" class="pill${on ? ' on' : ''}" data-key="${key}" data-value="${esc(value)}" aria-pressed="${on}">${esc(label)}${tag ? ` <small>${tag}</small>` : ''}</button>`;
+  return `<button type="button" class="pill${on ? ' on' : ''}" data-key="${esc(key)}" data-value="${esc(value)}" aria-pressed="${on}">${esc(label)}${tag ? ` <small>${tag}</small>` : ''}</button>`;
 }
 function stepHtml(field) {
   const all = field.all || optionsOf(field), current = field.generic ? (generic.filters[field.name] || '') : cardsTool.state[field.key];
@@ -41,9 +41,9 @@ function stepHtml(field) {
   html += popular.map(v => pill(field.key, v, shown(field.key, v), current === v, v === field.standard ? 'estándar' : '')).join('');
   if (rest.length) {
     const onRest = rest.includes(current);
-    html += `<select class="pill-select${onRest ? ' on' : ''}" data-key="${field.key}" aria-label="${esc(field.label)}: otras opciones"><option value="">Otro…</option>${rest.map(o => `<option value="${esc(o)}"${o === current ? ' selected' : ''}>${esc(shown(field.key, o))}</option>`).join('')}</select>`;
+    html += `<select class="pill-select${onRest ? ' on' : ''}" data-key="${esc(field.key)}" aria-label="${esc(field.label)}: otras opciones"><option value="">Otro…</option>${rest.map(o => `<option value="${esc(o)}"${o === current ? ' selected' : ''}>${esc(shown(field.key, o))}</option>`).join('')}</select>`;
   }
-  return `<div class="step"><div class="step-label">${field.label}</div><div class="pills" role="group" aria-label="${field.label}">${html}</div></div>`;
+  return `<div class="step"><div class="step-label">${esc(field.label)}</div><div class="pills" role="group" aria-label="${esc(field.label)}">${html}</div></div>`;
 }
 function quantityHtml() {
   const any = cardsTool.mode === 'generic', list = any ? GENERIC_QUANTITIES : QUANTITIES, q = any ? generic.quantity : cardsTool.state.quantity, custom = !list.includes(q);
@@ -281,7 +281,7 @@ window.initCardsTool = async function () {
       $('manual-box').scrollIntoView({block: 'start'});
     }
   });
-  cardsTool.onQuery($('cat-q').value.trim());
+  if (!cardsTool.ticket && !generic.ticket) cardsTool.onQuery($('cat-q').value.trim());  // initCatalog may already have searched
 };
 // What was typed in the finder decides the screen: nothing or business cards = the standard card; anything else = that product.
 cardsTool.onQuery = async function (text) {

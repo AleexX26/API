@@ -76,11 +76,12 @@ def parse_tariff(rows: list[dict[str, str]]) -> list[dict]:
             blocks.append({"label": label, "sides": sides, "finish": finish, "prices": {}})
         try:
             quantity, sale = int(float(cells["B"])), Decimal(cells["D"])
+            cost = Decimal(cells["C"]) if cells.get("C") else None
+            valid = sale.is_finite() and sale > 0
         except (KeyError, ValueError, ArithmeticError):
             continue
-        if blocks and sale > 0:
-            cost = cells.get("C")
-            blocks[-1]["prices"][quantity] = (Decimal(cost) if cost else None, sale)
+        if blocks and valid:
+            blocks[-1]["prices"][quantity] = (cost, sale)
     return [b for b in blocks if b["prices"]]
 
 
@@ -109,10 +110,7 @@ def load(db_path: Path, excel: Path, now: datetime | None = None) -> dict:
         raise ValueError("La hoja no tiene ningún precio de venta (columna «pvp icon»)")
     db = offers.connect(db_path)
     try:
-        with db:  # one transaction: the old business-card products of the page and the new ones
-            db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (shop.PROVIDER, f"{shop.PAGES[0]}#%"))
-        for item in items:
-            offers.replace_offers(db, shop.PROVIDER, item["url"], item["name"], item["rows"], stamp, item["spec"])
+        offers.replace_group(db, shop.PROVIDER, f"{shop.PAGES[0]}#%", items, stamp)  # one transaction: old and new
         offers.record_page(db, shop.PROVIDER, shop.PAGES[0], stamp, "ok", sum(len(i["rows"]) for i in items), None)
     finally:
         db.close()
@@ -176,7 +174,8 @@ def parse_tables(rows: list[dict[str, str]], price: str = "icon") -> tuple[list[
                 span = {c: v.lower() for c, v in cells.items() if column_index(start) - 1 <= column_index(c) < end}
                 pick = lambda test: next((c for c, v in span.items() if test(v)), None)
                 label_col = next((c for c, v in span.items() if v == "producto" and column_index(c) < column_index(start)), start)
-                wanted = pick(lambda v: v.startswith("pvp icon") and "unitario" not in v) if price == "icon" else pick(lambda v: "imprenta" in v)
+                icon = pick(lambda v: v.startswith("pvp icon") and "unitario" not in v)
+                wanted = icon if price == "icon" else pick(lambda v: "imprenta" in v) or icon  # a table without our web column keeps the tariff price
                 groups.append({"qty": start, "label": label_col, "measure": pick(lambda v: v.startswith("medidas")), "end": end,
                                "web": pick(lambda v: "imprenta" in v), "price": wanted, "title": tidy(before.get(label_col) or before.get(start) or ""), "number": number_ + 1})
             continue
@@ -237,21 +236,21 @@ def load_rest(db_path: Path, excel: Path, price: str = "web", now: datetime | No
             rows = read_sheet(excel, sheet)
             blocks, notes = parse_tables(rows, price)
             used = price
-            if price == "web" and not blocks:  # a sheet with no price of our web written: its only price is the sheet's tariff
-                blocks, notes = parse_tables(rows, "icon")
-                used = "icon"
+            if price == "web":  # tables with no price of our web written keep the sheet's tariff; say which one was really used
+                icon_blocks, _ = parse_tables(rows, "icon")
+                if [b["prices"] for b in blocks] == [b["prices"] for b in icon_blocks]:
+                    used = "icon"
         except ValueError as error:
             report[sheet] = {"products": 0, "prices": 0, "precio": price, "notes": [str(error)]}
             continue
         made = generic_products(sheet, blocks)
         items += made
         report[sheet] = {"products": len(made), "prices": sum(len(i["rows"]) for i in made), "precio": used, "notes": notes}
+    if not items:  # a wrong Excel must not wipe the products already loaded
+        raise ValueError("Ninguna hoja tiene precios; no cambio nada. " + "; ".join(f"{s}: {r['notes'][0]}" for s, r in report.items() if r["notes"])[:400])
     db = offers.connect(db_path)
     try:
-        with db:
-            db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (shop.PROVIDER, f"{shop.SITE}/?s=%{TARIFF_MARK}%"))
-        for item in items:
-            offers.replace_offers(db, shop.PROVIDER, item["url"], item["name"], item["rows"], stamp, item["spec"])
+        offers.replace_group(db, shop.PROVIDER, f"{shop.SITE}/?s=%{TARIFF_MARK}%", items, stamp)
     finally:
         db.close()
     return report

@@ -8,7 +8,6 @@ says "impuestos no incluidos"); shipping to the peninsula is free, the express o
 
 Needs Playwright and its Chromium (`requirements-test.txt`). Cached answers are reused for 30 days, so a rerun asks nothing.
 """
-import itertools
 import json
 import re
 import time
@@ -218,13 +217,13 @@ def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, now: 
         for url in urls or PAGES:
             if not navigation_allowed(robots, url) or not navigation_allowed(robots, AJAX):
                 raise ValueError(f"robots.txt does not permit {url} or the price calculator")
+            if db.execute("SELECT 1 FROM supplier_offers WHERE provider=? AND product_url LIKE ? LIMIT 1", (PROVIDER, f"{url}#tarifa-%")).fetchone():
+                report.append({"url": url, "status": "skipped", "reason": "esta página usa la tarifa propia importada del Excel"})
+                continue  # decided before asking the shop for anything
             raw, _ = sitemaps.fetch_cached(url, cache_dir / f"{slug(url.rstrip('/').rsplit('/', 1)[-1])}.html", now, state, expected="text/html")
             page = raw.decode("utf-8", "replace")
             if re.search(r"captcha|verify you are human|access denied|just a moment", page[:5000], re.I):
                 raise ValueError(f"Possible access challenge at {url}; stop for manual review")
-            if db.execute("SELECT 1 FROM supplier_offers WHERE provider=? AND product_url LIKE ? LIMIT 1", (PROVIDER, f"{url}#tarifa-%")).fetchone():
-                report.append({"url": url, "status": "skipped", "reason": "esta página usa la tarifa propia importada del Excel"})
-                continue
             form, info = parse_form(page), describe(page)
             if not any("unidades" in f["name"] for f in form):
                 offers.record_page(db, PROVIDER, url, now.isoformat(), "failed", 0, "configurator not found")

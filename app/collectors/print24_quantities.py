@@ -101,6 +101,7 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
                     decline.first.click()
                     page.wait_for_timeout(1500)
                 summary["pages"] += 1
+                answered = 0  # quantities of this page the site already answered
                 try:
                     for quantity in missing_quantities(data, stored_quantities(db, cid), maximum):
                         if quantity in stored_quantities(db, cid):  # an earlier answer already carried it
@@ -113,6 +114,7 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
                         with page.expect_response(is_matrix_request, timeout=30000) as asked:
                             page.get_by_role("listitem").filter(has_text=re.compile(rf"^\s*{quantity} Unidades?\s*$")).first.click()
                         reply = asked.value
+                        answered += 1
                         text = reply.text()
                         try:
                             parse_matrix(text)
@@ -125,7 +127,10 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
                         before = len(stored_quantities(db, cid))
                         import_matrix(db, text, context, source=f"{url}#quantity={quantity}")
                         summary["stored_quantities"] += len(stored_quantities(db, cid)) - before
-                except PageTimeout:  # this page has no quantity list like the others (custom sizes...): leave it as it is
+                except PageTimeout:
+                    if answered:  # the site answered before and now does not: stop, do not keep asking
+                        raise ValueError(f"Print24 stopped answering at {url} after {answered} quantities; stop for manual review")
+                    # nothing was ever answered: this page has no quantity list like the others (custom sizes...)
                     summary["pages_without_list"] += 1
                 log(json.dumps({"url": url.rsplit("/", 1)[-1], **summary}))
         finally:

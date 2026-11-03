@@ -47,6 +47,20 @@ def replace_offers(db: sqlite3.Connection, provider: str, url: str, name: str, r
              for r in rows])
 
 
+def replace_group(db: sqlite3.Connection, provider: str, url_like: str, items: list[dict], observed_at: str) -> None:
+    """Delete every page of the provider matching the LIKE pattern and store `items` instead, all in ONE transaction:
+    if anything fails the old prices stay."""
+    with db:
+        db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (provider, url_like))
+        for item in items:
+            spec_json = json.dumps(item.get("spec") or [], ensure_ascii=False)
+            db.executemany(
+                "INSERT INTO supplier_offers VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                [(provider, item["url"], item["name"], r.get("group", ""), r.get("variant", ""), r["quantity"], r["kind"], str(r["price"]),
+                  r["currency"], r["tax"], r["shipping"], r["scope"], r.get("delivery_days"), spec_json, observed_at)
+                 for r in item["rows"]])
+
+
 def record_page(db: sqlite3.Connection, provider: str, url: str, fetched_at: str, status: str, count: int, error: str | None) -> None:
     with db:
         db.execute("INSERT OR REPLACE INTO supplier_pages VALUES (?,?,?,?,?,?)", (provider, url, fetched_at, status, count, error))
