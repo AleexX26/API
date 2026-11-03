@@ -93,7 +93,9 @@ function toolBrief() {
 function whatIs(item) {
   return item.spec.filter(x => ['Formato', 'Papel', 'Impresión', 'Acabados', 'Realización'].includes(x.group) || /formato|papel|impres|acabado|realiz/i.test(x.group)).slice(0, 5).map(x => x.label).join(' · ') || item.spec.slice(0, 3).map(x => x.label).join(' · ');
 }
-function offerTotal(item) {return item.at ? withIva(Number(item.at.total), item.tax_status) : null;}
+function offerTotal(item) {return item.at ? withIva(Number(item.at.total), item.tax_status) : null;}  // with VAT: what the offers are ranked by
+const netOf = (value, tax) => tax === 'gross' ? Number(value) / IVA : Number(value);  // without VAT: what is shown first
+function netTotal(item) {return netOf(item.at.total, item.tax_status);}
 function offerRank(item) {
   const total = offerTotal(item);
   return [item.near ? 1 : 0, total === null ? 1 : 0, total ?? 0];
@@ -115,12 +117,16 @@ function chips(item, qty) {
 }
 function priceBlock(item, qty) {
   const total = offerTotal(item);
-  if (total === null) return `<div class="big muted">Sin precio a ${qty.toLocaleString('es-ES')} uds</div><div class="per">desde ${euro(withIva(item.from_price, item.tax_status))} a ${item.from_quantity} uds</div>`;
-  return `<div class="big">${item.at.estimated ? '≈ ' : ''}${euro(total)}</div><div class="per">${euro(total / qty)}/ud · ${item.tax_status === 'unknown' ? 'IVA sin confirmar' : 'IVA 21% incl.'}</div>`;
+  if (total === null) return `<div class="big muted">Sin precio a ${qty.toLocaleString('es-ES')} uds</div><div class="per">desde ${euro(netOf(item.from_price, item.tax_status))}${item.tax_status === 'unknown' ? '' : ' sin IVA'} a ${item.from_quantity} uds</div>`;
+  const approx = item.at.estimated ? '≈ ' : '';
+  if (item.tax_status === 'unknown') return `<div class="big">${approx}${euro(total)}</div><div class="per">IVA sin confirmar · ${euro(total / qty)}/ud</div>`;
+  const net = netTotal(item);
+  return `<div class="big">${approx}${euro(net)} <span class="tax">sin IVA</span></div><div class="with-iva">${euro(total)} con IVA (21 %)</div><div class="per">${euro(net / qty)}/ud sin IVA</div>`;
 }
 function otherRow(item, qty) {
   const total = offerTotal(item);
-  return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${total === null ? 'sin precio' : euro(total)}</td><td>${esc(whatIs(item))}</td></tr>`;
+  const price = total === null ? 'sin precio' : item.tax_status === 'unknown' ? euro(total) : `${euro(netTotal(item))} sin IVA<div class="auto-note">${euro(total)} con IVA</div>`;
+  return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${price}</td><td>${esc(whatIs(item))}</td></tr>`;
 }
 function offerCard(group, best, qty, badges) {
   const p = group.provider, index = cardsTool.items.indexOf(best), others = group.items.filter(i => i !== best);
@@ -131,18 +137,18 @@ function offerCard(group, best, qty, badges) {
  <p class="offer-what">${esc(whatIs(best))}</p>
  ${best.near ? `<p class="offer-near">Es el precio de la configuración por defecto de la ficha: ${esc(best.near)}. En la web quizá se pueda pedir lo que quieres con otro precio.</p>` : ''}
  <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
- ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio con IVA</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
+ ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
 }
 function bestBanner(groups, qty) {
   const priced = groups.map(g => ({g, item: g.best})).filter(x => offerTotal(x.item) !== null && x.item.tax_status !== 'unknown');
   const exact = priced.filter(x => !x.item.near), pool = exact.length ? exact : priced;
   if (!pool.length) return '';
   const cheapest = pool.reduce((m, x) => offerTotal(x.item) < offerTotal(m.item) ? x : m);
-  let html = `<p><strong>Lo más barato para este pedido:</strong> ${esc(cheapest.g.provider.name)} · ${euro(offerTotal(cheapest.item))} con IVA (${euro(offerTotal(cheapest.item) / qty)}/ud)${exact.length ? '' : ' · ninguna ficha coincide exactamente: precios de configuraciones parecidas'}</p>`;
+  let html = `<p><strong>Lo más barato para este pedido:</strong> ${esc(cheapest.g.provider.name)} · ${euro(netTotal(cheapest.item))} sin IVA (${euro(offerTotal(cheapest.item))} con IVA, ${euro(netTotal(cheapest.item) / qty)}/ud sin IVA)${exact.length ? '' : ' · ninguna ficha coincide exactamente: precios de configuraciones parecidas'}</p>`;
   const own = pool.find(x => x.g.provider.own), rivals = pool.filter(x => !x.g.provider.own);
   if (own && rivals.length) {
     const rival = rivals.reduce((m, x) => offerTotal(x.item) < offerTotal(m.item) ? x : m), diff = (offerTotal(own.item) / offerTotal(rival.item) - 1) * 100;
-    html += `<p>Nuestra web: ${euro(offerTotal(own.item))} · la competencia más barata es ${esc(rival.g.provider.name)} con ${euro(offerTotal(rival.item))}: ${Math.abs(diff) < 0.5 ? 'estamos igual' : diff < 0 ? `somos un ${Math.abs(diff).toFixed(1).replace('.', ',')} % más baratos` : `somos un ${diff.toFixed(1).replace('.', ',')} % más caros`}.</p>`;
+    html += `<p>Nuestra web: ${euro(netTotal(own.item))} sin IVA · la competencia más barata es ${esc(rival.g.provider.name)} con ${euro(netTotal(rival.item))} sin IVA: ${Math.abs(diff) < 0.5 ? 'estamos igual' : diff < 0 ? `somos un ${Math.abs(diff).toFixed(1).replace('.', ',')} % más baratos` : `somos un ${diff.toFixed(1).replace('.', ',')} % más caros`}.</p>`;
   }
   return `<div class="best-banner">${html}</div>`;
 }

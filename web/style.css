@@ -86,3 +86,5 @@ label select+input{margin-top:6px}
 .chip-main{background:var(--teal);border:1px solid var(--teal);color:#fff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600}
 #finder{padding-bottom:4px}
 .suggestions .chip-main{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;font-size:12px;padding:5px 13px}
+.offer-price .tax{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
+.offer-price .with-iva{font-size:14px;color:var(--ink);margin-top:2px}
