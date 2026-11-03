@@ -73,7 +73,7 @@ class Brief(BaseModel):
 
 class SearchRequest(BaseModel):
     brief: Brief
-    providers: list[str] = Field(default_factory=list, max_length=6)
+    providers: list[str] = Field(default_factory=list, max_length=8)
 
     @field_validator("providers")
     @classmethod

@@ -126,6 +126,7 @@ def parse_one(piece: str) -> dict | None:
         understood.insert(0, f"{quantity} uds.")
 
     return {"text": piece.strip(), "product": product, "query": " ".join(words), "quantity": quantity, "sides": sides, "max_days": max_days, "finishes": finishes,
+            "size": size_text, "grams": int(grams.group(1)) if grams else None,
             "understood": f"{product} · " + " · ".join(understood) if understood else product}
 
 

@@ -41,3 +41,44 @@ label select+input{margin-top:6px}
 .warn{color:#9a5b00}.compare-box h4{margin:14px 0 6px;font-size:14px}
 
 #manual-error{font-size:12px;color:#a04a34}.manual-from{margin-top:6px}
+
+/* Tarjetas de visita: guided tool */
+.tool-steps{display:grid;gap:14px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;margin:14px 0}
+.step{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center}
+.step-label{font-weight:650;font-size:13px;color:var(--ink)}
+.pills{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.pill{border:1px solid #b9c7c0;background:#fff;border-radius:999px;padding:8px 16px;font-size:14px;color:var(--ink);cursor:pointer}
+.pill:hover{border-color:var(--teal)}
+.pill small{font-size:11px;font-weight:400}
+.pill.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.pill-select,.pill-input{border:1px dashed #8fa59b;background:#fff;border-radius:999px;padding:8px 14px;font-size:14px;color:var(--ink);max-width:100%}
+.pill-input{width:150px}
+.pill-select.on,.pill-input.on{border:2px solid var(--teal);font-weight:600}
+.tool-more summary{cursor:pointer;font-weight:600;color:var(--teal);font-size:13px}
+.more-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
+.more-grid select{display:block;width:100%;margin-top:6px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:13px;color:var(--ink)}
+.step-actions{display:flex;justify-content:flex-end}
+.best-banner{background:var(--mint);border:1px solid #cfe3d8;border-radius:12px;padding:14px 18px;margin:0 0 14px}
+.best-banner p{margin:4px 0;font-size:14px}
+.tool-results{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;align-items:start}
+.offer{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.offer.best{border:2px solid #4f9a73}
+.offer.own{background:#f7faff}
+.offer-head{display:flex;align-items:center;gap:10px;font-size:15px}
+.tag{font-size:11px;font-weight:650;padding:3px 9px;border-radius:10px;background:#e6f3e8;color:#1f5b3d;white-space:nowrap}
+.tag.own{background:#e3ebf8;color:#274273}
+.offer-price .big{font-size:30px;font-weight:700;letter-spacing:-.8px;line-height:1.1}
+.offer-price .big.muted{font-size:18px;color:var(--muted);font-weight:600}
+.offer-price .per{font-size:12px;color:var(--muted)}
+.offer-meta{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;padding:3px 9px;border-radius:10px;background:#eef2ef;color:#3f524a}
+.chip.ok{background:#e6f3e8;color:#1f5b3d}
+.chip.warn{background:#fdf0dc;color:#7a4a05}
+.offer-what{margin:0;font-size:12px;color:var(--muted)}
+.offer-near{margin:0;font-size:12px;color:#7a4a05;background:#fdf0dc;border-radius:8px;padding:8px 10px}
+.offer-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.offer .comparison-box{padding:8px;margin:8px 0 0}
+.empty-box{grid-column:1/-1;background:#fff;border:1px dashed var(--border);border-radius:14px;padding:24px;text-align:center}
+.other-tools{margin:28px 0 0;border-top:1px solid var(--border)}
+.other-tools>summary{cursor:pointer;font-weight:650;padding:16px 0;font-size:15px}
+@media(max-width:700px){.step{grid-template-columns:1fr}.more-grid{grid-template-columns:1fr}.tool-results{grid-template-columns:minmax(0,1fr)}}

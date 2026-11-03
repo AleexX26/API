@@ -16,6 +16,7 @@ PROVIDERS = [
     {"id": "onlineprinters", "name": "Onlineprinters", "url": "https://www.onlineprinters.es/", "initials": "OP", "specialty": "Impresión digital y offset"},
     {"id": "stricker", "name": "Stricker", "url": "https://www.stricker-europe.com/es/", "initials": "ST", "specialty": "Regalo promocional y textil"},
     {"id": "tuskamisetas", "name": "TusKamisetas", "url": "https://www.tuskamisetas.com/es", "initials": "TK", "specialty": "Textil y personalización"},
+    {"id": "laimprentadeinternet", "name": "La Imprenta de Internet", "url": "https://laimprentadeinternet.com/", "initials": "LI", "specialty": "Nuestra web", "own": True},
 ]
 IDS = {p["id"] for p in PROVIDERS}
 IVA = Decimal("1.21")  # Spanish VAT 21%: prices read as net are shown with it added

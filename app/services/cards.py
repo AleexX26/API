@@ -55,6 +55,12 @@ def card_form(catalog: Path | None) -> dict:
     add_other_providers(catalog, form)
     if not form["pages"]:  # no Print24 page in the cache: the sides still have to be choosable
         form["pages"] = ["1 cara", "2 caras"]
+    if not form["orientation"]:
+        form["orientation"] = ["Vertical", "Horizontal"]
+    if not form["processing"]:
+        form["processing"] = ["Cortar", "Cortar, redondear esquinas"]
+    if not form["finishing"]:
+        form["finishing"] = ["Sin", "Barniz protector (recomendado)", "Plastificado", "Laminado en caliente"]
     # Weight and kind of paper apart, so a weight can be chosen whatever each provider calls the paper (estucado = cuché = couché)
     weights = sorted({int(g) for label in form["paper"] for g in grams_in(label)})
     families = [f for f in PAPER_FAMILIES if any(paper_key(label)[1] == f for label in form["paper"])]
@@ -219,7 +225,7 @@ def entry_matches(entry: dict, brief: dict, provider: str = "", grams_free: bool
     stripped = NEGATED.sub("", everything)
     named = NEGATED.sub("", head + " | " + " | ".join(l for _, l in items))  # option names only: the group "Laminado" is not a laminate
     if (processing := normalize(extras.get("processing", ""))):
-        rounded = "redonde" in stripped
+        rounded = "redonde" in named
         if ("redonde" in processing) != rounded:
             return False
 
@@ -256,7 +262,9 @@ def near_matches(pool: list[dict], brief: dict, have: set[str]) -> list[dict]:
     sides_asked = sides_in(clean((brief.get("extras") or {}).get("pages", "")))
     if weight_asked is None and not sides_asked:
         return []
-    loose = {**brief, "extras": {k: v for k, v in (brief.get("extras") or {}).items() if k != "pages"}}
+    plain_colour = "cmyk" in normalize(brief.get("printing") or "")  # "4+0 tintas (CMYK)" only says one side: it goes with the sides
+    loose = {**brief, "extras": {k: v for k, v in (brief.get("extras") or {}).items() if k != "pages"},
+             **({"printing": "Sin especificar"} if plain_colour else {})}
     found: dict[str, list[dict]] = {}
     for provider in {i["provider"] for i in pool} - have:
         for level, wanted in enumerate((brief, loose)):

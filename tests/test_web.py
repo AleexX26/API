@@ -27,7 +27,7 @@ def test_search_no_synthetic_prices(client):
     response = client.post('/api/search', json={"brief":BRIEF})
     assert response.status_code == 200
     result = response.json()
-    assert len(result['providers']) == 6
+    assert len(result['providers']) == 7
     assert result['providers'][0]['matched_links'] == 1
     assert not result['winners']
     assert all(not p['quotes'] for p in result['providers'])

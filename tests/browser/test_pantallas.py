@@ -1,12 +1,14 @@
-import re
-import pytest
 from playwright.sync_api import expect
 from axe_playwright_python.sync_playwright import Axe
 
 
-def open_home(page, q=""):
-    page.goto(f"{page.base}/" + (f"?q={q}" if q else ""))
-    page.wait_for_selector("#cat-table table, #cat-table .row, #cat-table tr", timeout=10000)
+def open_home(page):
+    page.goto(f"{page.base}/")
+    expect(page.locator("#tool-results .offer, #tool-results .empty-box").first).to_be_visible(timeout=15000)
+
+
+def pressed(page, key, value):
+    return page.locator(f'.pill[data-key="{key}"][data-value="{value}"]')
 
 
 def test_sin_errores_ni_scroll_horizontal(page):
@@ -24,21 +26,55 @@ def test_contraste_wcag_aa(page):
     assert not malos, "\n".join(malos[:8])
 
 
-def test_buscar_tarjetas_muestra_precios(page):
+def test_todo_empieza_en_lo_estandar(page):
     open_home(page)
-    page.fill("#cat-q", "tarjetas de visita")
-    page.click("#cat-go")
-    expect(page.locator("#cat-table")).to_contain_text("Tarjetas")
-    assert "30" in page.inner_text("#cat-table")
+    for key, value in (("quantity", "100"), ("format", "85 x 55 mm"), ("pages", "1 cara"), ("grams", "350 g/m²"),
+                       ("paper_type", "Estucado / cuché"), ("finishing", "Sin"), ("surface", ""), ("days", "0"), ("inks", "cmyk")):
+        expect(pressed(page, key, value)).to_have_attribute("aria-pressed", "true")
+    expect(page.locator("#tool-summary")).to_contain_text("100 tarjetas")
+    expect(page.locator("#tool-summary")).to_contain_text("85 × 55 mm")
 
 
-def test_pedido_de_cliente(page):
+def test_los_botones_cambian_el_precio(page):
     open_home(page)
-    page.fill("#customer-text", "Necesito 500 tarjetas de visita de 85x55 mm")
+    pressed(page, "quantity", "500").click()
+    expect(page.locator("#tool-results")).to_contain_text("36,30")  # 30,00 € sin IVA × 1,21
+    expect(pressed(page, "quantity", "500")).to_have_attribute("aria-pressed", "true")
+    page.fill('input[data-key="quantity"]', "1000")
+    page.press('input[data-key="quantity"]', "Enter")
+    expect(page.locator("#tool-summary")).to_contain_text("1000 tarjetas")
+
+
+def test_gramaje_distinto_sale_como_parecida_y_cualquiera_lo_quita(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    onlineprinters = page.locator(".offer", has_text="Onlineprinters")
+    printai = page.locator(".offer", has_text="Printai")
+    expect(onlineprinters).to_be_visible()
+    expect(printai).to_contain_text("300 g (pediste 350 g)")  # su ficha es de 300 g
+    pressed(page, "grams", "").click()
+    expect(printai).not_to_contain_text("pediste")
+    pressed(page, "surface", "Mate").click()  # ninguna ficha de prueba dice mate
+    expect(page.locator("#tool-results .empty-box")).to_be_visible()
+
+
+def test_pedido_de_cliente_rellena_los_botones(page):
+    open_home(page)
+    page.fill("#customer-text", "Necesito 500 tarjetas de visita de 85x55 mm en papel de 300 g por las dos caras")
     page.click("#customer-go")
-    expect(page.locator("#customer-items")).not_to_contain_text("Leyendo")
-    expect(page.locator("#customer-items")).not_to_have_text("")
-    assert "500" in page.inner_text("#customer-items")
+    expect(page.locator("#tool-summary")).to_contain_text("He entendido")
+    expect(pressed(page, "quantity", "500")).to_have_attribute("aria-pressed", "true")
+    expect(pressed(page, "pages", "2 caras")).to_have_attribute("aria-pressed", "true")
+    expect(pressed(page, "grams", "300 g/m²")).to_have_attribute("aria-pressed", "true")
+
+
+def test_no_salen_proveedores_sin_productos(page):
+    open_home(page)
+    resultados = page.locator("#tool-results").inner_text()
+    assert "Truyol" not in resultados and "Stricker" not in resultados
+    toggles = page.locator("#provider-toggles").text_content()
+    assert "Truyol" not in toggles and "Stricker" not in toggles
+    assert "Onlineprinters" in toggles
 
 
 def test_menu_visible_tras_scroll(page):
@@ -52,47 +88,18 @@ def test_menu_visible_tras_scroll(page):
         assert nav is not None  # en móvil basta con que exista y no tape la página
 
 
-def test_tarjetas_traen_los_valores_de_base_y_se_pueden_cambiar(page):
-    open_home(page)
-    page.fill("#cat-q", "tarjetas de visita")
-    expect(page.locator("#cc-format")).to_have_value("85 x 55 mm")
-    expect(page.locator("#cc-pages")).to_have_value("1 cara")
-    expect(page.locator("#cc-grams")).to_have_value("350 g/m²")
-    expect(page.locator("#cc-paper_type")).to_have_value("Estucado / cuché")
-    expect(page.locator("#cc-surface")).to_have_value("")
-    expect(page.locator("#cat-table")).to_contain_text("Onlineprinters")
-    expect(page.locator("#cat-table")).to_contain_text("Printai")  # su tarjeta es de 300 g: sale como la más parecida
-    expect(page.locator("#cat-table")).to_contain_text("300 g (pediste 350 g)")
-    page.select_option("#cc-grams", "")
-    expect(page.locator("#cat-table")).to_contain_text("Printai")
-    expect(page.locator("#cat-table")).not_to_contain_text("pediste")
-    page.select_option("#cc-surface", "Mate")  # ninguna ficha de prueba dice mate
-    expect(page.locator("#cat-table")).not_to_contain_text("Onlineprinters")
-
-
-def test_no_salen_proveedores_sin_productos(page):
-    open_home(page)
-    opciones = page.locator("#cat-provider option").all_inner_texts()
-    assert "Truyol" not in opciones and "Stricker" not in opciones
-    assert "Onlineprinters" in opciones
-    toggles = page.locator("#provider-toggles").inner_text()
-    assert "Truyol" not in toggles and "Stricker" not in toggles
-    assert "Truyol" not in page.locator("#cards").inner_text()
-
-
 def test_anotar_un_precio_a_mano_y_borrarlo(page):
     open_home(page)
-    page.fill("#cat-q", "tarjetas de visita")
-    printai = page.locator(".brand-block", has_text="Printai")
+    printai = page.locator(".offer", has_text="Printai")
     expect(printai).to_contain_text("pediste")
     try:
         printai.get_by_text("Anotar el precio real").click()
         expect(page.locator("#manual-dialog")).to_be_visible()
         page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
         page.fill("#m-price", "16,63")
-        page.fill("#m-quantity", "500")
         page.click("#manual-save")
-        expect(page.locator("#cat-table")).to_contain_text("Anotado a mano")
+        expect(page.locator(".offer", has_text="Printai")).to_contain_text("Anotado a mano")
+        expect(page.locator(".offer", has_text="Printai")).not_to_contain_text("pediste")
         expect(page.locator("#manual-count")).to_have_text("1")
         page.once("dialog", lambda d: d.accept())
         page.locator("#manual-box summary").click()
