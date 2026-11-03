@@ -222,6 +222,9 @@ def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, now: 
             page = raw.decode("utf-8", "replace")
             if re.search(r"captcha|verify you are human|access denied|just a moment", page[:5000], re.I):
                 raise ValueError(f"Possible access challenge at {url}; stop for manual review")
+            if db.execute("SELECT 1 FROM supplier_offers WHERE provider=? AND product_url LIKE ? LIMIT 1", (PROVIDER, f"{url}#tarifa-%")).fetchone():
+                report.append({"url": url, "status": "skipped", "reason": "esta página usa la tarifa propia importada del Excel"})
+                continue
             form, info = parse_form(page), describe(page)
             if not any("unidades" in f["name"] for f in form):
                 offers.record_page(db, PROVIDER, url, now.isoformat(), "failed", 0, "configurator not found")
