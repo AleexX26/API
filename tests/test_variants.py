@@ -71,3 +71,24 @@ def test_store_variant_rejects_an_empty_answer(tmp_path):
     with pytest.raises(MatrixError):
         variants.store_variant(db, "u", data(), {"group": "papier", "title": "Papel", "option_id": "4109", "label": "x"}, "", NOW)
     assert db.execute("SELECT count(*) FROM prices").fetchone()[0] == 0
+
+
+def _quantity_data():
+    boxes = [{"propGroupName": "quantity", "properties": [{"pgrId": str(i), "propertyTranslated": ["", f"{n}", "Unidades"]} for i, n in enumerate((1, 100, 250, 500, 1000, 2500), 1)]}]
+    return {"itemMaster": {"boxes": boxes, "selectedProps": [{"id": 7, "name": "seiten"}, {"id": 400, "name": "quantity"}, {"id": 3, "name": "shipping_type"}],
+                           "deepLink": "delivery_country_code=ES&product_alias_id=55"}, "priceMatrix": [{"quantity": {"id": 400}}]}
+
+
+def test_print24_missing_quantities_start_at_the_pages_own_and_stop_at_the_maximum():
+    from app.collectors import print24_quantities as q
+    data = _quantity_data()
+    assert q.quantity_options(data) == [1, 100, 250, 500, 1000, 2500]
+    assert q.missing_quantities(data, {100}, 1000) == [250, 500, 1000]  # not the 1 unit below the default, nothing above 1000
+    assert q.missing_quantities(data, {100, 250, 500, 1000}, 1000) == []
+
+
+def test_print24_answer_is_only_used_for_the_default_configuration():
+    from app.collectors import print24_quantities as q
+    data = _quantity_data()
+    assert q.same_properties({"properties": [{"id": "7", "name": "seiten"}]}, data)  # the quantity is not part of the identity
+    assert not q.same_properties({"properties": [{"id": "8", "name": "seiten"}]}, data)
