@@ -55,9 +55,16 @@ def card_form(catalog: Path | None) -> dict:
     add_other_providers(catalog, form)
     if not form["pages"]:  # no Print24 page in the cache: the sides still have to be choosable
         form["pages"] = ["1 cara", "2 caras"]
+    # Weight and kind of paper apart, so a weight can be chosen whatever each provider calls the paper (estucado = cuché = couché)
+    weights = sorted({int(g) for label in form["paper"] for g in grams_in(label)})
+    families = [f for f in PAPER_FAMILIES if any(paper_key(label)[1] == f for label in form["paper"])]
+    form["grams"] = [f"{w} g/m²" for w in weights]
+    form["paper_type"] = [FAMILY_CHOICE[f] for f in families if f in FAMILY_CHOICE]
     return {"types": list(CARD_TYPES), **form}
 
 
+FAMILY_CHOICE = {"estucado": "Estucado / cuché", "offset": "Offset", "carton": "Cartón", "reciclado": "Reciclado", "noble": "Papel noble",
+                 "luxecore": "Luxecore", "kraft": "Papel kraft", "hierba": "Papel de hierba", "natural": "Papel natural"}
 FAMILY_LABEL = {"estucado": "Papel estucado", "offset": "Offset", "carton": "Cartón", "reciclado": "Reciclado", "noble": "Papel noble",
                 "luxecore": "Luxecore", "kraft": "Papel kraft", "hierba": "Papel de hierba", "natural": "Papel natural"}
 
@@ -175,6 +182,9 @@ def entry_matches(entry: dict, brief: dict, provider: str = "", grams_free: bool
             for family, terms in PAPER_FAMILIES.items():
                 if family in want and not any(t in everything for t in terms):
                     return False
+        elif (family := next((f for f in PAPER_FAMILIES if f in want), "")):  # only the kind of paper: "estucado / cuché"
+            if not any(t in everything for t in PAPER_FAMILIES[family]):
+                return False
         elif want not in joined:
             return False
 
@@ -242,10 +252,10 @@ def near_matches(pool: list[dict], brief: dict, have: set[str]) -> list[dict]:
     other printed sides (Printai's basic card is printed on both sides)."""
     from app.services.compare import item_text
     asked = {int(g) for g in grams_in(clean(brief.get("material") or ""))}
-    if not asked:
-        return []
-    weight_asked = min(asked)
+    weight_asked = min(asked) if asked else None
     sides_asked = sides_in(clean((brief.get("extras") or {}).get("pages", "")))
+    if weight_asked is None and not sides_asked:
+        return []
     loose = {**brief, "extras": {k: v for k, v in (brief.get("extras") or {}).items() if k != "pages"}}
     found: dict[str, list[dict]] = {}
     for provider in {i["provider"] for i in pool} - have:
@@ -257,14 +267,16 @@ def near_matches(pool: list[dict], brief: dict, have: set[str]) -> list[dict]:
                 if item["provider"] != provider or not entry_matches(item, wanted, provider, grams_free=True):
                     continue
                 weights = [int(g) for g in grams_in(item_text(item))]
-                if weights:  # a page that does not say its weight cannot be called close
+                if weight_asked is None:  # no weight asked: only the sides differ
+                    candidates.append((0, 0, item))
+                elif weights:  # a page that does not say its weight cannot be called close
                     gap, weight = min((abs(w - weight_asked), w) for w in weights)
                     candidates.append((gap, weight, item))
             if candidates:
                 best = min(c[0] for c in candidates)
                 for gap, weight, item in candidates:
                     if gap == best:
-                        notes = [f"{weight} g en vez de {weight_asked} g"] if weight != weight_asked else []
+                        notes = [f"{weight} g en vez de {weight_asked} g"] if weight_asked and weight != weight_asked else []
                         sides = sides_in(item_text(item))
                         if level and sides:
                             notes.append(f"{'2 caras' if sides == {2} else '1 cara'} en vez de {'1 cara' if sides_asked == {1} else '2 caras'}")

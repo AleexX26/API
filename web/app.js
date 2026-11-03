@@ -68,11 +68,11 @@ function openQuote(id,auto,offer){selectedProvider=id;const p=providers.find(x=>
 $('close-dialog').addEventListener('click',()=>$('quote-dialog').close());
 $('quote-form').addEventListener('submit',async event=>{event.preventDefault();$('save-quote').disabled=true;$('quote-error').textContent='';try{const body={brief:activeBrief,provider:selectedProvider,product_net:$('product_net').value,shipping_net:$('shipping_net').value===''?null:$('shipping_net').value,additional_net:$('additional_net').value,delivery_days:Number($('delivery_days').value),valid_until:$('valid_until').value,source_url:$('source_url').value,notes:$('notes').value,confirmed_equivalent:$('confirmed').checked};await api('/api/quotes',body);$('quote-dialog').close();render(await api('/api/search',{brief:activeBrief,providers:currentProviders()}));$('toast').textContent='Presupuesto guardado en tu ordenador';$('toast').hidden=false;setTimeout(()=>$('toast').hidden=true,3500);}catch(e){$('quote-error').textContent=e.message;}finally{$('save-quote').disabled=false;}});
 let catPage=0;const CAT_SIZE=50;
-const CAT_CARD_FIELDS=CARD_LAYOUT.flatMap(([,fields])=>fields).filter(([key])=>key!=='quantity');
+const CAT_CARD_FIELDS=CARD_LAYOUT.flatMap(([,fields])=>fields).filter(([key])=>key!=='quantity'&&key!=='paper');
 const catCardOn=()=>$('cat-kind').value==='cards';
-const CAT_MAIN_FIELDS=[['type','Tipo'],['format','Tamaño'],['pages','Caras'],['paper','Papel'],['surface','Mate / brillo'],['finishing','Acabado']];
+const CAT_MAIN_FIELDS=[['type','Tipo'],['format','Tamaño'],['pages','Caras'],['grams','Gramaje'],['paper_type','Tipo de papel'],['surface','Mate / brillo'],['finishing','Acabado']];
 const pickOption=(key,start)=>{const o=[...($('cc-'+key)?.options||[])].find(x=>x.value.startsWith(start));return o?o.value:'';};
-function setCardDefaults(clear){if(!$('cc-format'))return;$('cc-type').value=clear?'':pickOption('type','Estándar');$('cc-format').value=clear?'':pickOption('format','85 x 55');$('cc-pages').value=clear?'':pickOption('pages','1 cara');$('cc-paper').value=clear?'':pickOption('paper','350 g/m² Papel estucado');$('cc-finishing').value=clear?'':pickOption('finishing','Sin');}
+function setCardDefaults(clear){if(!$('cc-format'))return;$('cc-type').value=clear?'':pickOption('type','Estándar');$('cc-format').value=clear?'':pickOption('format','85 x 55');$('cc-pages').value=clear?'':pickOption('pages','1 cara');$('cc-grams').value=clear?'':pickOption('grams','350');$('cc-paper_type').value=clear?'':pickOption('paper_type','Estucado');$('cc-finishing').value=clear?'':pickOption('finishing','Sin');}
 let autoCards=false;
 const isCardText=t=>{const n=t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();return /tarjeta/.test(n)&&/visita/.test(n);};
 const catCardValue=key=>$('cc-'+key)?.value||'';
@@ -81,7 +81,8 @@ async function updateCatalogMode(){const on=catCardOn();if(on&&!cardForm){try{ca
   $('cat-card-form').innerHTML=`<fieldset class="card-group"><legend>Tarjetas de visita</legend><div class="filter-grid">${CAT_MAIN_FIELDS.map(sel).join('')}</div><details class="auto-more-products"><summary>Más características</summary><div class="filter-grid">${CAT_CARD_FIELDS.filter(([key])=>!CAT_MAIN_FIELDS.some(m=>m[0]===key)).map(sel).join('')}</div></details></fieldset>`;
   $('cat-card-form').querySelectorAll('select').forEach(x=>x.addEventListener('change',()=>loadCatalog(0)));setCardDefaults(false);}
  $('cat-card-form').hidden=!on;}
-function catCardBrief(){const b={format:catCardValue('format')||'Sin especificar',material:catCardValue('paper')||'Sin especificar',printing:catCardValue('inks')||'Sin especificar',finishing:catCardValue('finishing')||'Sin especificar',extras:{}};for(const key of CARD_EXTRA_KEYS)if(catCardValue(key))b.extras[key]=catCardValue(key);return b;}
+const catMaterial=()=>{const g=catCardValue('grams').replace(/ g[/]m²$/,''),t=catCardValue('paper_type');return g&&t?`${g} g/m² ${t}`:g?`${g} g/m²`:t||'Sin especificar';};
+function catCardBrief(){const b={format:catCardValue('format')||'Sin especificar',material:catMaterial(),printing:catCardValue('inks')||'Sin especificar',finishing:catCardValue('finishing')||'Sin especificar',extras:{}};for(const key of CARD_EXTRA_KEYS)if(catCardValue(key))b.extras[key]=catCardValue(key);return b;}
 const IVA=1.21;
 const withIva=(amount,tax)=>tax==='net'?Number(amount)*IVA:Number(amount);
 const ivaNote=(tax,net)=>tax==='net'?`IVA 21% incl. · ${euro(net)} sin IVA`:tax==='gross'?'IVA incl.':'⚠ IVA sin confirmar';
