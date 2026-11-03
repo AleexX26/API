@@ -21,6 +21,7 @@ ROBOTS = ROOT / "data/homepage-index/printai.robots.txt"
 CHALLENGE = ("cf-chl-", "verify you are human", "just a moment", "access denied", "attention required")
 SELECT = re.compile(r"<select([^>]*)>(.*?)</select>", re.S)
 ATTR = {key: re.compile(r"(?<![\w-])" + key + r'\s*=\s*"([^"]+)"') for key in ("name", "id")}
+RADIO = re.compile(r'<input\s[^>]*type="radio"[^>]*>', re.S)
 SELECTED = re.compile(r'<option[^>]*selected[^>]*>(.*?)</option>', re.S)
 
 
@@ -45,6 +46,23 @@ def product_ld(page: str) -> dict:
             if isinstance(item, dict) and item.get("@type") == "Product":
                 return item
     raise MatrixError("No Product data in page")
+
+
+def radio_spec(page: str, labels: dict) -> list[dict]:
+    """The chosen option of each radio group (paper, for instance): the checked one, or the first, as a browser shows it."""
+    groups: dict[str, list[tuple[str, bool]]] = {}
+    for tag in RADIO.findall(page):
+        name, ident = (ATTR[k].search(tag) for k in ("name", "id"))
+        if name and ident and name.group(1).startswith("aoptions["):
+            groups.setdefault(name.group(1), []).append((ident.group(1), "checked" in tag))
+    found = []
+    for name, options in groups.items():
+        ident = next((i for i, checked in options if checked), options[0][0])
+        group = re.sub(r"(?i)^elige (?:el|la) ", "", plain(labels.get(name, ""))).strip().capitalize() or "Opción"
+        text = plain(labels.get(ident, ""))
+        if text:
+            found.append({"group": group, "label": text})
+    return found
 
 
 def parse_page(page: str) -> dict:
@@ -74,6 +92,7 @@ def parse_page(page: str) -> dict:
             label = plain(re.sub(r'<div class="d-none.*?</div></div>', "", labels.get(ident, ""), flags=re.S)) or "Tamaño"
             if (label, text) not in [(s["group"], s["label"]) for s in spec]:
                 spec.append({"group": label, "label": text})
+    spec += [x for x in radio_spec(page, labels) if (x["group"], x["label"]) not in [(y["group"], y["label"]) for y in spec]]
     if not quantity:
         raise MatrixError("Selected quantity not found")
     return {"name": ld["name"], "quantity": quantity, "net": net, "gross": gross, "spec": spec}

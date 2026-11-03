@@ -377,7 +377,9 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
         for item in items:
             if item["provider"] != "print24":
                 item["spec"] = enrich_spec(item["spec"], item["url"])
-        items = [i for i in items if entry_matches(i, cards, i["provider"])]
+        exact = [i for i in items if entry_matches(i, cards, i["provider"])]
+        from app.services.cards import near_matches
+        items = exact + near_matches(items, cards, {i["provider"] for i in exact})  # a provider with no exact card shows its closest
     from app.services.compare import search_tokens
     chosen = []
     for item in items:

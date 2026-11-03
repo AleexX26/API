@@ -3,8 +3,8 @@ let providers = [], visible = [], activeBrief = null, selectedProvider = null, l
 const euro = value => new Intl.NumberFormat('es-ES', {style:'currency',currency:'EUR'}).format(Number(value));
 const esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fields = ['query','quantity','format','material','printing','finishing','max_days'];
-const CARD_LAYOUT=[['Producto',[['type','Tipo de tarjeta']]],['Propiedades',[['pages','Páginas'],['format','Formato'],['orientation','Orientación'],['paper','Papel'],['inks','Impresión'],['processing','Procesamiento'],['finishing','Acabados'],['proof','Prueba']]],['Cantidad',[['quantity','Cantidad'],['individualization','Individualización'],['designs','Diseños']]],['Envío',[['packing','Empaquetado']]]];
-const CARD_EXTRA_KEYS=['type','pages','orientation','processing','proof','individualization','designs','packing'];
+const CARD_LAYOUT=[['Producto',[['type','Tipo de tarjeta']]],['Propiedades',[['pages','Páginas'],['format','Formato'],['orientation','Orientación'],['paper','Papel'],['surface','Mate / brillo'],['inks','Impresión'],['processing','Procesamiento'],['finishing','Acabados'],['proof','Prueba']]],['Cantidad',[['quantity','Cantidad'],['individualization','Individualización'],['designs','Diseños']]],['Envío',[['packing','Empaquetado']]]];
+const CARD_EXTRA_KEYS=['type','surface','pages','orientation','processing','proof','individualization','designs','packing'];
 let cardForm=null;
 const isCard=()=>/tarjeta/i.test($('query').value.normalize('NFD').replace(/[̀-ͯ]/g,''))&&/visita/i.test($('query').value);
 const cardEl=key=>$('card-'+key);
@@ -70,9 +70,9 @@ $('quote-form').addEventListener('submit',async event=>{event.preventDefault();$
 let catPage=0;const CAT_SIZE=50;
 const CAT_CARD_FIELDS=CARD_LAYOUT.flatMap(([,fields])=>fields).filter(([key])=>key!=='quantity');
 const catCardOn=()=>$('cat-kind').value==='cards';
-const CAT_MAIN_FIELDS=[['format','Tamaño'],['pages','Caras'],['paper','Papel']];
+const CAT_MAIN_FIELDS=[['type','Tipo'],['format','Tamaño'],['pages','Caras'],['paper','Papel'],['surface','Mate / brillo'],['finishing','Acabado']];
 const pickOption=(key,start)=>{const o=[...($('cc-'+key)?.options||[])].find(x=>x.value.startsWith(start));return o?o.value:'';};
-function setCardDefaults(clear){if(!$('cc-format'))return;$('cc-format').value=clear?'':pickOption('format','85 x 55');$('cc-pages').value=clear?'':pickOption('pages','1 cara');$('cc-paper').value=clear?'':pickOption('paper','350 g/m² Papel estucado');}
+function setCardDefaults(clear){if(!$('cc-format'))return;$('cc-type').value=clear?'':pickOption('type','Estándar');$('cc-format').value=clear?'':pickOption('format','85 x 55');$('cc-pages').value=clear?'':pickOption('pages','1 cara');$('cc-paper').value=clear?'':pickOption('paper','350 g/m² Papel estucado');$('cc-finishing').value=clear?'':pickOption('finishing','Sin');}
 let autoCards=false;
 const isCardText=t=>{const n=t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();return /tarjeta/.test(n)&&/visita/.test(n);};
 const catCardValue=key=>$('cc-'+key)?.value||'';
@@ -107,7 +107,7 @@ async function loadCatalog(page=0){catPage=page;const text=$('cat-q').value.trim
  await updateCatalogMode();if(catCardOn())params.set('cards',JSON.stringify(catCardBrief()));
  try{const data=await api('/api/catalog?'+params);const names=Object.fromEntries(providers.map(p=>[p.id,p.name]));const total=Object.values(data.counts).reduce((a,b)=>a+b,0);
  $('catalog-summary').textContent=`${total} productos recogidos · ${visible.map(p=>`${p.name} ${data.counts[p.id]||0}`).join(' · ')}`;
- const catRow=i=>`<tr><td>${esc(i.provider_name)}</td><td><a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)} ↗</a>${i.variants?` <span class="auto-note">+${i.variants} variaciones</span>`:''}${i.comparable===false?'<div class="auto-note warn">⚠ no comparable con impresión: '+esc(i.scope||'')+'</div>':''}</td><td>${filtered?priceCell(i,qty):`${i.price_kind==='unit'?'≈ ':''}${euro(withIva(i.from_price,i.tax_status))}${i.price_kind==='unit'?'/ud':''} <span class="auto-note">a ${i.from_quantity} uds · ${i.tax_status==='net'?'IVA incl.':i.tax_status==='gross'?'IVA incl.':'⚠ IVA sin confirmar'}</span>`}</td><td>${i.min_quantity}${i.max_quantity!==i.min_quantity?'–'+i.max_quantity:''} (${i.tiers})</td><td>${esc(i.spec.slice(0,3).map(x=>x.label).join(' · '))}</td></tr>`;
+ const catRow=i=>`<tr><td>${esc(i.provider_name)}</td><td><a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)} ↗</a>${i.variants?` <span class="auto-note">+${i.variants} variaciones</span>`:''}${i.near?'<div class="auto-note warn">Es la más parecida: '+esc(i.near)+'</div>':''}${i.comparable===false?'<div class="auto-note warn">⚠ no comparable con impresión: '+esc(i.scope||'')+'</div>':''}</td><td>${filtered?priceCell(i,qty):`${i.price_kind==='unit'?'≈ ':''}${euro(withIva(i.from_price,i.tax_status))}${i.price_kind==='unit'?'/ud':''} <span class="auto-note">a ${i.from_quantity} uds · ${i.tax_status==='net'?'IVA incl.':i.tax_status==='gross'?'IVA incl.':'⚠ IVA sin confirmar'}</span>`}</td><td>${i.min_quantity}${i.max_quantity!==i.min_quantity?'–'+i.max_quantity:''} (${i.tiers})</td><td>${esc(i.spec.slice(0,3).map(x=>x.label).join(' · '))}</td></tr>`;
  const catHead=`<thead><tr><th>Proveedor</th><th>Producto</th><th>${filtered?'Precio a '+qty+' uds (con IVA)':'Desde (con IVA)'}</th><th>Cantidades</th><th>Qué es</th></tr></thead>`;
  const byBrand=new Map();for(const i of data.items){if(!byBrand.has(i.provider))byBrand.set(i.provider,[]);byBrand.get(i.provider).push(i);}
  const catTable=items=>`<div class="comparison-box"><table>${catHead}<tbody>${items.map(catRow).join('')}</tbody></table></div>`;

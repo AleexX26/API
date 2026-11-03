@@ -58,10 +58,15 @@ def test_tarjetas_traen_los_valores_de_base_y_se_pueden_cambiar(page):
     expect(page.locator("#cc-format")).to_have_value("85 x 55 mm")
     expect(page.locator("#cc-pages")).to_have_value("1 cara")
     expect(page.locator("#cc-paper")).to_have_value("350 g/m² Papel estucado")
+    expect(page.locator("#cc-surface")).to_have_value("")
     expect(page.locator("#cat-table")).to_contain_text("Onlineprinters")
-    expect(page.locator("#cat-table")).not_to_contain_text("Printai")  # su tarjeta es de 300 g
+    expect(page.locator("#cat-table")).to_contain_text("Printai")  # su tarjeta es de 300 g: sale como la más parecida
+    expect(page.locator("#cat-table")).to_contain_text("300 g en vez de 350 g")
     page.select_option("#cc-paper", "")
     expect(page.locator("#cat-table")).to_contain_text("Printai")
+    expect(page.locator("#cat-table")).not_to_contain_text("en vez de")
+    page.select_option("#cc-surface", "Mate")  # ninguna ficha de prueba dice mate
+    expect(page.locator("#cat-table")).not_to_contain_text("Onlineprinters")
 
 
 def test_no_salen_proveedores_sin_productos(page):

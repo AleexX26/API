@@ -539,3 +539,33 @@ def test_providers_say_how_many_products_each_has(tmp_path):
         counts = {p["id"]: p["products"] for p in client.get("/api/providers").json()["providers"]}
     assert counts["print24"] == 1 and counts["onlineprinters"] == 2
     assert counts["truyol"] == 0 and counts["stricker"] == 0
+
+
+def test_matt_or_gloss_and_closest_weight():
+    from app.services.cards import entry_matches, near_matches
+    basic = {"query": "tarjetas de visita", "quantity": 1, "format": "85 x 55 mm", "material": "350 g/m² Papel estucado",
+             "printing": "Sin especificar", "finishing": "Sin", "extras": {"pages": "1 cara"}}
+    op = _entry("https://www.onlineprinters.es/p/tarjetas-visitas-4-0-85x55mm", "Imprimir tarjetas de visita, 4/0 85x55 mm",
+                [("Formato", "8,5 x 5,5 cm"), ("Papel", "300 g/m² papel cuché PEFC Economy"),
+                 ("Realización", "cuché mate"), ("Acabados", "sin acabado")])
+    op["provider"] = "onlineprinters"
+    pa = _entry("https://www.printai.es/tarjetas-de-visita/", "Tarjetas de visita personales",
+                [("Tamaño", "8,5x5,5cm"), ("Caras impresión", "Dos caras (4/4)"),
+                 ("Laminado", "Sin laminado"), ("Papel", "Estucado mate - 350gr.")])
+    pa["provider"] = "printai"
+    assert not entry_matches(op, basic, "onlineprinters")  # 300 g is not 350 g
+    assert entry_matches(op, basic, "onlineprinters", grams_free=True)  # but cuché is estucado
+    assert entry_matches(op, {**basic, "extras": {**basic["extras"], "surface": "Mate"}}, "onlineprinters", grams_free=True)
+    assert not entry_matches(op, {**basic, "extras": {**basic["extras"], "surface": "Brillo"}}, "onlineprinters", grams_free=True)
+    near = {i["provider"]: i["near"] for i in near_matches([op, pa], basic, set())}
+    assert near == {"onlineprinters": "300 g en vez de 350 g", "printai": "2 caras en vez de 1 cara"}
+    assert near_matches([op, pa], basic, {"onlineprinters", "printai"}) == []  # exact matches need no fallback
+
+
+def test_printai_reads_radio_options_such_as_the_paper():
+    from app.collectors.printai import radio_spec
+    page = ('<label for="aoptions[1665]">Elige el papel </label>'
+            '<input type="radio" id="4605" name="aoptions[1665]" checked="checked" value="4605"><label for="4605">Estucado mate - 350gr.</label>'
+            '<input type="radio" id="4604" name="aoptions[1665]" value="4604"><label for="4604">Estucado brillo - 350gr.</label>')
+    labels = {"aoptions[1665]": "Elige el papel ", "4605": "Estucado mate - 350gr.", "4604": "Estucado brillo - 350gr."}
+    assert radio_spec(page, labels) == [{"group": "Papel", "label": "Estucado mate - 350gr."}]

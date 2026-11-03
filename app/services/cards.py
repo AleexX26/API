@@ -17,7 +17,7 @@ PRINT24_GROUPS = {"seiten": "pages", "format": "format", "aspect_ratio": "orient
                   "farben": "inks", "verarbeitung": "processing", "finishing": "finishing", "proofformat": "proof",
                   "quantity": "quantity", "individualization": "individualization", "motive": "designs", "packing": "packing"}
 PRINT24_ONLY = ("proof", "individualization", "designs", "packing")  # concepts the other providers do not have
-CARD_KEYS = {"type", "pages", "orientation", "processing", *PRINT24_ONLY}
+CARD_KEYS = {"type", "pages", "orientation", "processing", "surface", *PRINT24_ONLY}
 
 # Kind of card -> words that show it in a product's name or spec. [] = the plain card (none of the others).
 CARD_TYPES = {"Estándar": [], "Exclusiva": ["exclusiv"], "Ecológica": ["ecolog", "greenline", "green line"],
@@ -30,6 +30,8 @@ PAPER_FAMILIES = {"estucado": ["estucado", "cuche", "couche"], "offset": ["offse
                   "reciclado": ["reciclad", "ecolog"], "noble": ["noble", "rococo", "gmund"], "luxecore": ["luxecore"],
                   "kraft": ["kraft"], "hierba": ["hierba"], "natural": ["natural"]}
 SIZE = re.compile(r"(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(mm|cm)?")
+# Matt or gloss: the paper ("cuché mate") or the lamination ("plastificado brillo"), whichever the page names.
+SURFACES = {"mate": re.compile(r"\bmate\b"), "brillo": re.compile(r"\b(?:brillo|brillante|gloss)\b")}
 NEGATED = re.compile(r"\bsin (?:propiedad de |acabados?|laminado|plastificado|barniz\w*|relieve|redondeo(?: de esquinas)?)")
 
 
@@ -49,6 +51,7 @@ def card_form(catalog: Path | None) -> dict:
                     label = " ".join(part.strip() for part in prop["propertyTranslated"] if part and part.strip())
                     if label and label not in form[key]:
                         form[key].append(label)
+    form["surface"] = ["Mate", "Brillo"]
     add_other_providers(catalog, form)
     if not form["pages"]:  # no Print24 page in the cache: the sides still have to be choosable
         form["pages"] = ["1 cara", "2 caras"]
@@ -143,11 +146,11 @@ def clean(value: str) -> str:
     return normalize(re.sub(r"\s*\([^)]*\)\s*$", "", value or ""))
 
 
-def entry_matches(entry: dict, brief: dict, provider: str = "") -> bool:
+def entry_matches(entry: dict, brief: dict, provider: str = "", grams_free: bool = False) -> bool:
     """True when the product shows everything chosen in the business-card form.
 
     A page that does not say it fails. Prueba, diseños and packing only exist at Print24, so they are not asked
-    of the other providers.
+    of the other providers. grams_free keeps the paper family (estucado = cuché = couché) but accepts any weight.
     """
     items = [(normalize(x["group"]), normalize(x["label"])) for x in entry["spec"]]
     head = normalize(entry["url"].rsplit("/", 1)[-1].replace("-", " ") + " " + entry["title"])
@@ -167,7 +170,7 @@ def entry_matches(entry: dict, brief: dict, provider: str = "") -> bool:
     if (want := chosen("material")):
         wanted_grams = grams_in(want)
         if wanted_grams:
-            if not wanted_grams <= grams_in(everything):
+            if not grams_free and not wanted_grams <= grams_in(everything):
                 return False
             for family, terms in PAPER_FAMILIES.items():
                 if family in want and not any(t in everything for t in terms):
@@ -200,7 +203,11 @@ def entry_matches(entry: dict, brief: dict, provider: str = "") -> bool:
         if not any(t in everything for t in terms):
             return False
 
+    if (surface := normalize(extras.get("surface", ""))) in SURFACES and not SURFACES[surface].search(everything):
+        return False
+
     stripped = NEGATED.sub("", everything)
+    named = NEGATED.sub("", head + " | " + " | ".join(l for _, l in items))  # option names only: the group "Laminado" is not a laminate
     if (processing := normalize(extras.get("processing", ""))):
         rounded = "redonde" in stripped
         if ("redonde" in processing) != rounded:
@@ -208,7 +215,7 @@ def entry_matches(entry: dict, brief: dict, provider: str = "") -> bool:
 
     if (finishing := chosen("finishing")):
         if finishing == "sin":
-            if any(t in stripped for terms in FINISH_TERMS.values() for t in terms):
+            if any(t in named for terms in FINISH_TERMS.values() for t in terms):
                 return False
         else:
             terms = next((v for k, v in FINISH_TERMS.items() if finishing.startswith(k)), [finishing])
@@ -227,3 +234,40 @@ def entry_matches(entry: dict, brief: dict, provider: str = "") -> bool:
             if (want := clean(extras.get(key, ""))) and want not in joined:
                 return False
     return True
+
+
+def near_matches(pool: list[dict], brief: dict, have: set[str]) -> list[dict]:
+    """For the providers with no card that meets everything, their closest ones, each marked in item["near"] with what
+    differs: first the same card with the nearest weight (300 g when 350 g was asked); if there is none, also with the
+    other printed sides (Printai's basic card is printed on both sides)."""
+    from app.services.compare import item_text
+    asked = {int(g) for g in grams_in(clean(brief.get("material") or ""))}
+    if not asked:
+        return []
+    weight_asked = min(asked)
+    sides_asked = sides_in(clean((brief.get("extras") or {}).get("pages", "")))
+    loose = {**brief, "extras": {k: v for k, v in (brief.get("extras") or {}).items() if k != "pages"}}
+    found: dict[str, list[dict]] = {}
+    for provider in {i["provider"] for i in pool} - have:
+        for level, wanted in enumerate((brief, loose)):
+            if level and not sides_asked:
+                break
+            candidates = []
+            for item in pool:
+                if item["provider"] != provider or not entry_matches(item, wanted, provider, grams_free=True):
+                    continue
+                weights = [int(g) for g in grams_in(item_text(item))]
+                if weights:  # a page that does not say its weight cannot be called close
+                    gap, weight = min((abs(w - weight_asked), w) for w in weights)
+                    candidates.append((gap, weight, item))
+            if candidates:
+                best = min(c[0] for c in candidates)
+                for gap, weight, item in candidates:
+                    if gap == best:
+                        notes = [f"{weight} g en vez de {weight_asked} g"] if weight != weight_asked else []
+                        sides = sides_in(item_text(item))
+                        if level and sides:
+                            notes.append(f"{'2 caras' if sides == {2} else '1 cara'} en vez de {'1 cara' if sides_asked == {1} else '2 caras'}")
+                        found.setdefault(provider, []).append({**item, "near": " · ".join(notes) or "casi igual"})
+                break
+    return [i for items in found.values() for i in items]
