@@ -407,7 +407,7 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
     for added in extra or []:  # prices typed in by hand (see manual_prices.py)
         items.append(dict(added))
         counts = {**counts, added["provider"]: counts.get(added["provider"], 0) + 1}
-    order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
+    order = {p["id"]: (-1 if p.get("own") else i) for i, p in enumerate(PROVIDERS)}  # our own shop first: a long list is never cut off before it
     counts = dict(counts)
     words = catalog_words(q)
     for item in items:

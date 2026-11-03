@@ -11,11 +11,11 @@ The Excel is read without extra libraries (an .xlsx is a zip of XML files). Load
 import html
 import json
 import re
-import sys
 import zipfile
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import quote
 
 from app.collectors import laimprentadeinternet as shop
 from app.collectors import offers
@@ -119,8 +119,155 @@ def load(db_path: Path, excel: Path, now: datetime | None = None) -> dict:
     return {"products": len(items), "prices": sum(len(i["rows"]) for i in items)}
 
 
+# The other sheets (bags, menus, coasters, pens, boxes, pads, folders, calendars, stickers) have the same idea with other layouts:
+# one or more tables side by side, each with a header row ("UNIDADES", "MEDIDAS", "PVP PROVEEDOR", "PVP ICON"...) and titles
+# between the rows. They are read by their headers, never by position.
+SHEETS = {"BOLSAS papel": "Bolsas de papel", "CARTAS RESTAURANTE": "Cartas de restaurante", "MANTELES INDIVIDUALES": "Manteles individuales",
+          "POSAVASOS": "Posavasos", "BOLIGRAFOS": "Bolígrafos", "CAJAS": "Cajas", "talonarios": "Talonarios", "CARPETAS": "Carpetas",
+          "CALENDARIOS BOLSILLO": "Calendarios de bolsillo", "calendarios mesa wire-o": "Calendarios de mesa wire-o", "Adhesivos": "Adhesivos"}
+PRICE_COLUMNS = {"icon": "PVP ICON en todas las hojas", "web": "PRECIO LA IMPRENTA DE INTERNET donde la hoja lo trae y PVP ICON en las demás"}
+SHOP_SEARCH = f"{shop.SITE}/?s=%s&post_type=product"
+
+
+def number(text: str | None) -> Decimal | None:
+    try:
+        value = Decimal((text or "").replace(",", ".").strip())
+    except ArithmeticError:
+        return None
+    return value if value.is_finite() else None
+
+
+def column_index(letters: str) -> int:
+    total = 0
+    for char in letters:
+        total = total * 26 + ord(char) - 64
+    return total
+
+
+def tidy(label: str) -> str:
+    """A block title without the supplier written next to it ("CARTA TRIPTICO (TRUYOL)") and on one line."""
+    label = re.sub(r"\s*\((?:TRUYOL|ONLINE PRINTERS?|PRINT24|PRINTAI|STRICKER)\)", "", label, flags=re.I)
+    label = " ".join(label.split()).strip(" .")
+    if len(label) > 70:  # a pen's whole description is in the title cell: keep the start
+        label = label[:70].rsplit(" ", 1)[0] + "…"
+    return label
+
+
+def parse_tables(rows: list[dict[str, str]], price: str = "icon") -> tuple[list[dict], list[str]]:
+    """[{label, measure, prices: {quantity: price}}] and the problems found, from the rows of one sheet.
+
+    Two tables with the same title and measure but different prices are a conflict: the first one is kept and it is reported.
+    """
+    groups: list[dict] = []
+    found: dict[tuple, dict] = {}
+    notes: list[str] = []
+    header = None
+    before: dict[str, str] = {}  # a title above the header row ("calendarios de bolsillo sin acabado") belongs to the first block
+    for position, cells in enumerate(rows):
+        if header is None:
+            starts = [c for c, v in cells.items() if v.lower().startswith("unidades")]
+            if not starts:
+                before.update(cells)
+                continue
+            header = position
+            ordered = sorted(starts, key=column_index)
+            for number_, start in enumerate(ordered):
+                end = column_index(ordered[number_ + 1]) if number_ + 1 < len(ordered) else 10**6
+                span = {c: v.lower() for c, v in cells.items() if column_index(start) - 1 <= column_index(c) < end}
+                pick = lambda test: next((c for c, v in span.items() if test(v)), None)
+                label_col = next((c for c, v in span.items() if v == "producto" and column_index(c) < column_index(start)), start)
+                wanted = pick(lambda v: v.startswith("pvp icon") and "unitario" not in v) if price == "icon" else pick(lambda v: "imprenta" in v)
+                groups.append({"qty": start, "label": label_col, "measure": pick(lambda v: v.startswith("medidas")), "end": end,
+                               "web": pick(lambda v: "imprenta" in v), "price": wanted, "title": tidy(before.get(label_col) or before.get(start) or ""), "number": number_ + 1})
+            continue
+        for column, text in cells.items():  # a sub-header between the header row and the data: "pvp la imprenta"
+            if "imprenta" in text.lower() and not any(number(v) is not None for v in cells.values()):
+                for group in groups:
+                    if group["web"] is None and column_index(group["qty"]) - 1 <= column_index(column) < group["end"]:
+                        group["web"] = column
+                        if price == "web":
+                            group["price"] = column
+        for group in groups:
+            qty_text = cells.get(group["qty"], "")
+            separate = group["label"] != group["qty"]
+            if separate and cells.get(group["label"]):
+                group["title"] = tidy(cells[group["label"]])
+            amount = number(cells.get(group["price"])) if group["price"] else None
+            quantity = number(qty_text)
+            if quantity is None:
+                if qty_text and not separate and amount is None:
+                    group["title"] = tidy(qty_text)
+                continue
+            if amount is None or amount <= 0:
+                continue
+            measure = (cells.get(group["measure"]) or "").strip() if group["measure"] else ""
+            key = (group["title"], measure)
+            block = found.setdefault(key, {"label": group["title"], "measure": measure, "prices": {}, "group": group["number"]})
+            old = block["prices"].get(int(quantity))
+            if old is not None and old != amount and block["group"] != group["number"]:
+                notes.append(f"{group['title'] or 'sin título'} {measure} {int(quantity)} uds: dos tablas dan {old} y {amount}; me quedo con {old}")
+            elif old is None:
+                block["prices"][int(quantity)] = amount
+    if header is None:
+        raise ValueError("No encuentro una fila de títulos con «UNIDADES»")
+    return list(found.values()), notes
+
+
+def generic_products(sheet: str, blocks: list[dict]) -> list[dict]:
+    name = SHEETS.get(sheet, sheet.title())
+    query = quote(name.lower().split(" de ")[0])
+    found = []
+    for block in blocks:
+        title = "" if block["label"].lower() == name.lower() else block["label"]  # "MANTELES INDIVIDUALES" under the sheet "Manteles individuales"
+        label = " · ".join(x for x in (title, block["measure"]) if x)
+        spec = ([{"group": "Formato", "label": block["measure"]}] if block["measure"] else []) + ([{"group": "Modelo", "label": block["label"]}] if block["label"] else [])
+        rows = [{"quantity": q, "kind": "total", "price": amount, "currency": "EUR", "tax": "net", "shipping": "unknown",
+                 "scope": "tarifa propia (Excel); precio sin IVA", "delivery_days": None} for q, amount in sorted(block["prices"].items())]
+        found.append({"url": f"{SHOP_SEARCH % query}{TARIFF_MARK}{shop.slug(name + ' ' + label)}", "name": f"{name} · {label}" if label else name,
+                      "rows": rows, "spec": spec, "sheet": sheet})
+    return found
+
+
+def load_rest(db_path: Path, excel: Path, price: str = "web", now: datetime | None = None) -> dict:
+    """Load every other sheet as prices of our shop. Replaces what an earlier load stored for them."""
+    stamp = (now or datetime.now(timezone.utc)).isoformat()
+    report, items = {}, []
+    for sheet in SHEETS:
+        try:
+            rows = read_sheet(excel, sheet)
+            blocks, notes = parse_tables(rows, price)
+            used = price
+            if price == "web" and not blocks:  # a sheet with no price of our web written: its only price is the sheet's tariff
+                blocks, notes = parse_tables(rows, "icon")
+                used = "icon"
+        except ValueError as error:
+            report[sheet] = {"products": 0, "prices": 0, "precio": price, "notes": [str(error)]}
+            continue
+        made = generic_products(sheet, blocks)
+        items += made
+        report[sheet] = {"products": len(made), "prices": sum(len(i["rows"]) for i in made), "precio": used, "notes": notes}
+    db = offers.connect(db_path)
+    try:
+        with db:
+            db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (shop.PROVIDER, f"{shop.SITE}/?s=%{TARIFF_MARK}%"))
+        for item in items:
+            offers.replace_offers(db, shop.PROVIDER, item["url"], item["name"], item["rows"], stamp, item["spec"])
+    finally:
+        db.close()
+    return report
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit("Uso: python -m app.collectors.tarifa_propia ARCHIVO.xlsx [base.sqlite3]")
-    db = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "data/catalog.sqlite3"
-    print(json.dumps(load(db, Path(sys.argv[1])), ensure_ascii=False, indent=1))
+    import argparse
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument("excel", type=Path)
+    cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
+    cli.add_argument("--hojas", choices=("tarjetas", "resto", "todas"), default="todas", help="qué hojas cargar")
+    cli.add_argument("--precio", choices=tuple(PRICE_COLUMNS), default="web", help="columna de la hoja que se toma como precio de nuestra web: " + "; ".join(f"{k} = {v}" for k, v in PRICE_COLUMNS.items()))
+    args = cli.parse_args()
+    result = {}
+    if args.hojas in ("tarjetas", "todas"):
+        result["TARJETAS DE VISITA"] = load(args.db, args.excel)
+    if args.hojas in ("resto", "todas"):
+        result.update(load_rest(args.db, args.excel, args.precio))
+    print(json.dumps(result, ensure_ascii=False, indent=1))

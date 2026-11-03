@@ -662,3 +662,16 @@ def test_manual_price_can_be_edited(tmp_path):
         assert client.post("/api/manual-prices/update", json={**changed, "id": new_id + 99}).status_code == 404
         assert client.post("/api/manual-prices/update", json={**changed, "url": "https://evil.test/x"}).status_code == 422
         assert client.post("/api/manual-prices/update", json={**changed, "price": "0"}).status_code == 422
+
+
+def test_our_own_shop_is_never_cut_off_by_a_long_list(tmp_path):
+    from app.collectors import offers as store
+    cat = tmp_path / "catalog.sqlite3"
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t", "quantity": 100, "kind": "total"}
+    for n in range(30):
+        store.replace_offers(db, "onlineprinters", f"https://x.es/p/pegatina-{n}", f"Pegatina {n}", [{**base, "price": "10.00"}], "2026-10-27", [])
+    store.replace_offers(db, "laimprentadeinternet", "https://laimprentadeinternet.com/#tarifa-pegatina", "Pegatinas", [{**base, "price": "50.00"}], "2026-10-27", [])
+    db.close()
+    first = catalog_listing(cat, q="pegatinas", limit=5)["items"]
+    assert first[0]["provider"] == "laimprentadeinternet"

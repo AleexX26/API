@@ -173,7 +173,7 @@ cardsTool.search = async function () {
   if (cardsTool.mode === 'generic') return searchGeneric();
   const state = cardsTool.state, qty = Number(state.quantity) || STANDARD.quantity, ticket = ++cardsTool.ticket;
   $('tool-summary').textContent = 'Buscando: ' + describeChoice();
-  const params = new URLSearchParams({q: 'tarjetas de visita', limit: 200, offset: 0, quantity: qty, cards: JSON.stringify(toolBrief())});
+  const params = new URLSearchParams({q: 'tarjetas de visita', limit: 1000, offset: 0, quantity: qty, cards: JSON.stringify(toolBrief())});
   if (state.days) params.set('max_days', state.days);
   try {
     const data = await api('/api/catalog?' + params);
@@ -186,7 +186,7 @@ cardsTool.search = async function () {
 async function searchGeneric() {
   const qty = generic.quantity || 100, ticket = ++cardsTool.ticket;
   $('tool-summary').textContent = 'Buscando: ' + describeChoice();
-  const params = new URLSearchParams({q: generic.query, limit: 200, offset: 0, quantity: qty});
+  const params = new URLSearchParams({q: generic.query, limit: 1000, offset: 0, quantity: qty});
   if (Object.keys(generic.filters).length) params.set('filters', JSON.stringify(generic.filters));
   if (generic.days) params.set('max_days', generic.days);
   try {

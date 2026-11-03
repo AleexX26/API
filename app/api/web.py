@@ -195,7 +195,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         return {"providers": [{**p, "products": counts.get(p["id"], 0)} for p in PROVIDERS]}
 
     @app.get("/api/catalog")
-    def catalog_view(provider: str = "", q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+    def catalog_view(provider: str = "", q: str = Query("", max_length=100), limit: int = Query(50, ge=1, le=1000), offset: int = Query(0, ge=0),
                      cards: str = Query("", max_length=1500), quantity: int | None = Query(None, ge=1, le=1000000),
                      max_days: int | None = Query(None, ge=1, le=180),
                      sides: int | None = Query(None, ge=1, le=2), filters: str = Query("", max_length=2000)):
