@@ -130,6 +130,10 @@ class ManualPrice(BaseModel):
         return value.strip()
 
 
+class ManualPriceEdit(ManualPrice):
+    id: int = Field(ge=1)
+
+
 class ManualPriceId(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: int = Field(ge=1)
@@ -274,6 +278,22 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         if not valid:
             raise HTTPException(422, "La URL debe ser HTTPS del proveedor seleccionado")
         return {"id": manual_prices.add(database, data.model_dump())}
+
+    @app.post("/api/manual-prices/update")
+    def manual_update(data: ManualPriceEdit):
+        if data.provider not in IDS:
+            raise HTTPException(422, "Proveedor desconocido")
+        try:
+            valid = valid_source(data.provider, data.url)
+        except ValueError:
+            valid = False
+        if not valid:
+            raise HTTPException(422, "La URL debe ser HTTPS del proveedor seleccionado")
+        payload = data.model_dump()
+        price_id = payload.pop("id")
+        if not manual_prices.update(database, price_id, payload):
+            raise HTTPException(404, "No existe ese precio")
+        return {"updated": price_id}
 
     @app.post("/api/manual-prices/delete")
     def manual_delete(data: ManualPriceId):

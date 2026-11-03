@@ -645,3 +645,20 @@ def test_a_zero_price_is_not_a_price(tmp_path):
     store.replace_offers(db, "onlineprinters", "https://x.es/p/flyers-b", "Flyers A5", [{**base, "price": "30.00"}], "2026-10-27", [])
     db.close()
     assert [i["title"] for i in catalog_listing(cat, q="flyers")["items"]] == ["Flyers A5"]
+
+
+def test_manual_price_can_be_edited(tmp_path):
+    cat = _flyer_catalog(tmp_path)
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, cat)) as client:
+        new_id = client.post("/api/manual-prices", json=MANUAL).json()["id"]
+        changed = {**MANUAL, "id": new_id, "price": "50.10", "quantity": 250, "note": "Corregido"}
+        assert client.post("/api/manual-prices/update", json=changed).status_code == 200
+        rows = client.get("/api/manual-prices").json()["items"]
+        assert len(rows) == 1 and rows[0]["price"] == "50.10" and rows[0]["quantity"] == 250 and rows[0]["note"] == "Corregido"
+        got = client.get("/api/catalog", params={"q": "tarjetas de visita", "quantity": 250, "cards": json.dumps(BASIC_CARD)}).json()
+        assert [i["at"]["total"] for i in got["items"] if i.get("manual")] == ["50.10"]
+        assert client.post("/api/manual-prices/update", json={**changed, "id": new_id + 99}).status_code == 404
+        assert client.post("/api/manual-prices/update", json={**changed, "url": "https://evil.test/x"}).status_code == 422
+        assert client.post("/api/manual-prices/update", json={**changed, "price": "0"}).status_code == 422

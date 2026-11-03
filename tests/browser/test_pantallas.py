@@ -133,3 +133,25 @@ def test_el_buscador_da_la_misma_pantalla_para_cualquier_producto(page):
     page.click("#customer-go")  # un pedido de tarjetas vuelve a la pantalla guiada
     expect(page.locator("#tool-title")).to_have_text("Tarjetas de visita")
     expect(page.locator("#cat-q")).to_have_value("")
+
+
+def test_editar_un_precio_anotado_sin_duplicarlo(page):
+    open_home(page)
+    printai = page.locator(".offer", has_text="Printai")
+    try:
+        printai.get_by_text("Anotar el precio real").click()
+        page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
+        page.fill("#m-price", "16,63")
+        page.click("#manual-save")
+        expect(page.locator("#manual-count")).to_have_text("1")
+        page.locator("#manual-box summary").click()
+        page.locator(".manual-edit").first.click()
+        expect(page.locator("#manual-heading")).to_have_text("Editar el precio anotado")
+        expect(page.locator("#m-price")).to_have_value("16,63")
+        page.fill("#m-price", "19,90")
+        page.click("#manual-save")
+        expect(page.locator("#manual-body")).to_contain_text("19,90")
+        expect(page.locator("#manual-count")).to_have_text("1")  # cambiado, no duplicado
+    finally:
+        for row in page.request.get(f"{page.base}/api/manual-prices").json()["items"]:
+            page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})

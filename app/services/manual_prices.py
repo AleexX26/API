@@ -31,6 +31,16 @@ def add(path: Path, data: dict) -> int:
         return cursor.lastrowid
 
 
+def update(path: Path, price_id: int, data: dict) -> bool:
+    """Change a price typed in earlier; the date becomes today's (the price was looked at again)."""
+    with sqlite3.connect(path) as db:
+        return db.execute("""UPDATE manual_prices SET provider=?,title=?,url=?,format=?,grams=?,paper_type=?,surface=?,sides=?,finishing=?,
+            quantity=?,price=?,tax=?,shipping=?,delivery_days=?,note=?,created_at=? WHERE id=?""",
+                          (data["provider"], data["title"], data["url"], data["format"], data["grams"], data["paper_type"], data["surface"],
+                           data["sides"], data["finishing"], data["quantity"], str(data["price"]), data["tax"], data["shipping"],
+                           data["delivery_days"], data["note"], datetime.now(timezone.utc).isoformat(), price_id)).rowcount > 0
+
+
 def remove(path: Path, price_id: int) -> bool:
     with sqlite3.connect(path) as db:
         return db.execute("DELETE FROM manual_prices WHERE id=?", (price_id,)).rowcount > 0

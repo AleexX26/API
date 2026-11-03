@@ -130,7 +130,7 @@ function offerCard(group, best, qty, badges) {
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${esc(whatIs(best))}</p>
  ${best.near ? `<p class="offer-near">Es el precio de la configuración por defecto de la ficha: ${esc(best.near)}. En la web quizá se pueda pedir lo que quieres con otro precio.</p>` : ''}
- <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}</div>
+ <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio con IVA</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
 }
 function bestBanner(groups, qty) {
@@ -270,6 +270,10 @@ window.initCardsTool = async function () {
   $('tool-results').addEventListener('click', event => {
     const button = event.target.closest('.tool-manual');
     if (button) openManual(cardsTool.items[Number(button.dataset.index)], manualFill());
+    if (event.target.closest('.tool-edit-manual')) {
+      $('manual-box').open = true;
+      $('manual-box').scrollIntoView({block: 'start'});
+    }
   });
   cardsTool.onQuery($('cat-q').value.trim());
 };
