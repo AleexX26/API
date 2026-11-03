@@ -41,6 +41,19 @@ def update(path: Path, price_id: int, data: dict) -> bool:
                            data["delivery_days"], data["note"], datetime.now(timezone.utc).isoformat(), price_id)).rowcount > 0
 
 
+def add_many(path: Path, data: dict, items: list[dict]) -> list[int]:
+    """The same configuration at several quantities, all or none."""
+    ids = []
+    with sqlite3.connect(path) as db:
+        for item in items:
+            ids.append(db.execute("""INSERT INTO manual_prices (provider,title,url,format,grams,paper_type,surface,sides,finishing,quantity,
+                price,tax,shipping,delivery_days,note,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                                  (data["provider"], data["title"], data["url"], data["format"], data["grams"], data["paper_type"], data["surface"],
+                                   data["sides"], data["finishing"], item["quantity"], str(item["price"]), data["tax"], data["shipping"],
+                                   data["delivery_days"], data["note"], datetime.now(timezone.utc).isoformat())).lastrowid)
+    return ids
+
+
 def remove(path: Path, price_id: int) -> bool:
     with sqlite3.connect(path) as db:
         return db.execute("DELETE FROM manual_prices WHERE id=?", (price_id,)).rowcount > 0

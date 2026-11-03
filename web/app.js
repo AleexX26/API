@@ -131,13 +131,15 @@ const manualBadge=i=>i.manual?`<div class="auto-note">✎ Anotado a mano el ${es
 const manualButton=i=>i.near?`<button type="button" class="outline manual-from" data-provider="${esc(i.provider)}" data-url="${esc(i.url)}">✎ Anotar el precio real</button>`:'';
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;setTimeout(()=>$('toast').hidden=true,3500);}
 let manualEditId=null,manualRows=[];
+// "100 = 16,63" per line -> [{quantity, price}]; 10.000 is ten thousand
+function parseMany(text){return text.split(/\n/).map(l=>l.trim()).filter(Boolean).map(line=>{const m=line.match(/^([\d.]+)\s*(?:=|:|;|\t|\s)\s*([\d.,]+)\s*€?$/);if(!m)throw Error(`No entiendo la línea «${line}». Escríbela así: 100 = 16,63`);const price=m[2].includes(',')?m[2].replace(/[.]/g,'').replace(',','.'):m[2];return {quantity:Number(m[1].replace(/[.](?=\d{3}\b)/g,'')),price};});}
 function openManual(item,fill){manualEditId=null;$('manual-heading').textContent='Anotar el precio que ves en la web';$('manual-save').textContent='Guardar precio';const num=v=>(String(v||'').match(/\d+/)||[''])[0],sel=key=>$('cc-'+key)?.value||'',form=$('manual-form');form.reset();
  $('m-provider').innerHTML=providers.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
  const provider=item?.provider||($('cat-provider').value)||(visible[0]||providers[0]).id;$('m-provider').value=provider;
  $('m-url').value=item?.url||providers.find(p=>p.id===provider).url;$('m-title').value=item&&isCardText(item.title)?item.title:'Tarjetas de visita';
  const f=fill||{format:sel('format'),grams:num(sel('grams')),paper_type:sel('paper_type'),surface:sel('surface'),sides:/2/.test(sel('pages'))?'2':'1',finishing:sel('finishing'),quantity:$('cat-qty').value};
  $('m-format').value=f.format||'85 x 55 mm';$('m-grams').value=f.grams||'';$('m-paper_type').value=f.paper_type||'';$('m-surface').value=f.surface||'';
- $('m-sides').value=f.sides||'1';$('m-finishing').value=f.finishing||'Sin';$('m-quantity').value=f.quantity||100;$('manual-error').textContent='';
+ $('m-sides').value=f.sides||'1';$('m-finishing').value=f.finishing||'Sin';$('m-quantity').value=f.quantity||100;$('manual-error').textContent='';$('m-quantity').required=$('m-price').required=true;
  $('manual-dialog').showModal();}
 function openManualEdit(r){if(!r)return;openManual();manualEditId=r.id;$('manual-heading').textContent='Editar el precio anotado';$('manual-save').textContent='Guardar cambios';
  $('m-provider').value=r.provider;$('m-url').value=r.url;$('m-title').value=r.title;$('m-format').value=r.format;$('m-grams').value=r.grams||'';$('m-paper_type').value=r.paper_type;$('m-surface').value=r.surface;
@@ -151,9 +153,11 @@ function initManual(){loadManual();
  $('manual-body').addEventListener('click',e=>{const b=e.target.closest('.manual-edit');if(b)openManualEdit(manualRows.find(r=>r.id===Number(b.dataset.id)));});
  $('manual-body').addEventListener('click',async e=>{const b=e.target.closest('.manual-del');if(!b||!confirm('¿Borrar este precio anotado?'))return;try{await api('/api/manual-prices/delete',{id:Number(b.dataset.id)});toast('Precio borrado');await loadManual();loadCatalog(catPage);cardsTool.search();}catch(err){toast(err.message);}});
  $('close-manual').addEventListener('click',()=>$('manual-dialog').close());
+ $('m-many').addEventListener('input',()=>{$('m-quantity').required=$('m-price').required=!$('m-many').value.trim();});  // with a list, the single quantity and price are not needed
  $('manual-form').addEventListener('submit',async e=>{e.preventDefault();$('manual-save').disabled=true;$('manual-error').textContent='';
-  try{const v=id=>$(id).value.trim();await api(manualEditId?'/api/manual-prices/update':'/api/manual-prices',{...(manualEditId?{id:manualEditId}:{}),provider:v('m-provider'),url:v('m-url'),title:v('m-title'),format:v('m-format'),grams:v('m-grams')?Number(v('m-grams')):null,paper_type:v('m-paper_type'),surface:v('m-surface'),sides:Number(v('m-sides')),finishing:v('m-finishing')||'Sin',quantity:Number(v('m-quantity')),price:v('m-price').replace(',','.'),tax:v('m-tax'),shipping:v('m-shipping'),delivery_days:v('m-days')?Number(v('m-days')):null,note:v('m-note')});
-   $('manual-dialog').close();toast(manualEditId?'Cambios guardados':'Precio anotado');if(!visible.some(p=>p.id===v('m-provider'))){location.reload();return;}await loadManual();loadCatalog(catPage);cardsTool.search();}
+  try{const v=id=>$(id).value.trim(),many=!manualEditId&&v('m-many')?parseMany(v('m-many')):null;const common={provider:v('m-provider'),url:v('m-url'),title:v('m-title'),format:v('m-format'),grams:v('m-grams')?Number(v('m-grams')):null,paper_type:v('m-paper_type'),surface:v('m-surface'),sides:Number(v('m-sides')),finishing:v('m-finishing')||'Sin',tax:v('m-tax'),shipping:v('m-shipping'),delivery_days:v('m-days')?Number(v('m-days')):null,note:v('m-note')};
+   if(many)await api('/api/manual-prices/bulk',{...common,items:many});else await api(manualEditId?'/api/manual-prices/update':'/api/manual-prices',{...(manualEditId?{id:manualEditId}:{}),...common,quantity:Number(v('m-quantity')),price:v('m-price').replace(',','.')});
+   $('manual-dialog').close();toast(manualEditId?'Cambios guardados':many?`${many.length} precios anotados`:'Precio anotado');if(!visible.some(p=>p.id===v('m-provider'))){location.reload();return;}await loadManual();loadCatalog(catPage);cardsTool.search();}
   catch(err){$('manual-error').textContent=err.message;}finally{$('manual-save').disabled=false;}});}
 const RECENT_KEY='mesa.recent';
 const readRecent=()=>{try{return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]').filter(x=>typeof x==='string').slice(0,6);}catch{return [];}};

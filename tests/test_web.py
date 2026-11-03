@@ -675,3 +675,24 @@ def test_our_own_shop_is_never_cut_off_by_a_long_list(tmp_path):
     db.close()
     first = catalog_listing(cat, q="pegatinas", limit=5)["items"]
     assert first[0]["provider"] == "laimprentadeinternet"
+
+
+def test_several_quantities_can_be_typed_in_at_once(tmp_path):
+    cat = _flyer_catalog(tmp_path)
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    common = {k: v for k, v in MANUAL.items() if k not in ("quantity", "price")}
+    items = [{"quantity": 100, "price": "16.63"}, {"quantity": 1000, "price": "48.50"}, {"quantity": 10000, "price": "300.00"}]
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, cat)) as client:
+        assert client.post("/api/manual-prices/bulk", json={**common, "items": [items[0], items[0]]}).status_code == 422  # a repeated quantity
+        assert client.post("/api/manual-prices/bulk", json={**common, "items": [{"quantity": 100, "price": "0"}]}).status_code == 422
+        assert client.post("/api/manual-prices/bulk", json={**common, "items": []}).status_code == 422
+        assert client.post("/api/manual-prices/bulk", json={**common, "url": "https://evil.test/x", "items": items}).status_code == 422
+        assert len(client.get("/api/manual-prices").json()["items"]) == 0  # nothing was saved by the failed ones
+        got = client.post("/api/manual-prices/bulk", json={**common, "items": items})
+        assert got.status_code == 201 and len(got.json()["ids"]) == 3
+        rows = client.get("/api/manual-prices").json()["items"]
+        assert sorted(r["quantity"] for r in rows) == [100, 1000, 10000]
+        card = client.get("/api/catalog", params={"q": "tarjetas de visita", "quantity": 1000, "cards": json.dumps(BASIC_CARD)}).json()
+        manual = [i for i in card["items"] if i.get("manual")]
+        assert len(manual) == 1 and manual[0]["tiers"] == 3 and manual[0]["at"]["total"] == "48.50"

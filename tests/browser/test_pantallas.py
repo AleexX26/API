@@ -155,3 +155,21 @@ def test_editar_un_precio_anotado_sin_duplicarlo(page):
     finally:
         for row in page.request.get(f"{page.base}/api/manual-prices").json()["items"]:
             page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})
+
+
+def test_anotar_varias_cantidades_de_golpe(page):
+    open_home(page)
+    lines = "['100 = 16,63', '1.000 = 48,50', '10.000: 300'].join(String.fromCharCode(10))"
+    assert page.evaluate(f"parseMany({lines})") == [
+        {"quantity": 100, "price": "16.63"}, {"quantity": 1000, "price": "48.50"}, {"quantity": 10000, "price": "300"}]
+    printai = page.locator(".offer", has_text="Printai")
+    try:
+        printai.get_by_text("Anotar el precio real").click()
+        page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
+        page.fill("#m-many", "100 = 16,63\n1.000 = 48,50\n10.000 = 300")
+        page.click("#manual-save")  # quantity and price boxes are not needed when the list is filled
+        expect(page.locator("#manual-count")).to_have_text("3")
+        expect(page.locator(".offer", has_text="Printai")).to_contain_text("Anotado a mano")
+    finally:
+        for row in page.request.get(f"{page.base}/api/manual-prices").json()["items"]:
+            page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})

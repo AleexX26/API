@@ -102,8 +102,8 @@ class QuoteRequest(BaseModel):
     confirmed_equivalent: Literal[True]
 
 
-class ManualPrice(BaseModel):
-    """A price read by a person on the provider's web for one business-card configuration."""
+class ManualPriceBase(BaseModel):
+    """What a person read on the provider's web about one business-card configuration (without quantity and price)."""
     model_config = ConfigDict(extra="forbid")
     provider: str
     url: str = Field(max_length=1500)
@@ -114,8 +114,6 @@ class ManualPrice(BaseModel):
     surface: Literal["", "Mate", "Brillo"] = ""
     sides: Literal[1, 2] = 1
     finishing: str = Field(default="Sin", max_length=60)
-    quantity: int = Field(ge=1, le=1000000)
-    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     tax: Literal["gross", "net"] = "gross"
     shipping: Literal["included", "excluded", "unknown"] = "included"
     delivery_days: int | None = Field(default=None, ge=1, le=180)
@@ -128,6 +126,22 @@ class ManualPrice(BaseModel):
         if "tarjeta" not in text or "visita" not in text:
             raise ValueError("El nombre debe decir «tarjetas de visita»")
         return value.strip()
+
+
+class ManualPrice(ManualPriceBase):
+    quantity: int = Field(ge=1, le=1000000)
+    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+
+
+class ManualQuantity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    quantity: int = Field(ge=1, le=1000000)
+    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+
+
+class ManualPriceBulk(ManualPriceBase):
+    """The same configuration at several quantities, typed in one go."""
+    items: list[ManualQuantity] = Field(min_length=1, max_length=40)
 
 
 class ManualPriceEdit(ManualPrice):
@@ -278,6 +292,21 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         if not valid:
             raise HTTPException(422, "La URL debe ser HTTPS del proveedor seleccionado")
         return {"id": manual_prices.add(database, data.model_dump())}
+
+    @app.post("/api/manual-prices/bulk", status_code=201)
+    def manual_bulk(data: ManualPriceBulk):
+        if data.provider not in IDS:
+            raise HTTPException(422, "Proveedor desconocido")
+        try:
+            valid = valid_source(data.provider, data.url)
+        except ValueError:
+            valid = False
+        if not valid:
+            raise HTTPException(422, "La URL debe ser HTTPS del proveedor seleccionado")
+        if len({i.quantity for i in data.items}) != len(data.items):
+            raise HTTPException(422, "Hay una cantidad repetida")
+        common = data.model_dump(exclude={"items"})
+        return {"ids": manual_prices.add_many(database, common, [i.model_dump() for i in data.items])}
 
     @app.post("/api/manual-prices/update")
     def manual_update(data: ManualPriceEdit):
