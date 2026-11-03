@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from app.api.web import create_app
+from app.services.workbench import catalog_listing
 from app.collectors.index_homepages import Navigation, navigation_allowed
 
 
@@ -569,3 +570,16 @@ def test_printai_reads_radio_options_such_as_the_paper():
             '<input type="radio" id="4604" name="aoptions[1665]" value="4604"><label for="4604">Estucado brillo - 350gr.</label>')
     labels = {"aoptions[1665]": "Elige el papel ", "4605": "Estucado mate - 350gr.", "4604": "Estucado brillo - 350gr."}
     assert radio_spec(page, labels) == [{"group": "Papel", "label": "Estucado mate - 350gr."}]
+
+
+def test_catalog_is_cached_but_sees_new_prices(tmp_path):
+    from app.collectors import offers as store
+    cat = tmp_path / "catalog.sqlite3"
+    db = store.connect(cat)
+    base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t", "quantity": 500, "kind": "total"}
+    store.replace_offers(db, "onlineprinters", "https://x.es/p/flyers-a5", "Flyers A5", [{**base, "price": "30.00"}], "2026-10-27", [])
+    assert catalog_listing(cat)["counts"]["onlineprinters"] == 1
+    assert catalog_listing(cat)["counts"]["onlineprinters"] == 1  # second call comes from the cache
+    store.replace_offers(db, "onlineprinters", "https://x.es/p/flyers-a6", "Flyers A6", [{**base, "price": "20.00"}], "2026-10-27", [])
+    db.close()
+    assert catalog_listing(cat)["counts"]["onlineprinters"] == 2  # the database changed: it is read again

@@ -302,12 +302,33 @@ def spec_days(spec: list) -> int | None:
     return None
 
 
-def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None, max_days: int | None = None,
-                    seed: Path | None = None, sides: int | None = None) -> dict:
-    """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
-    empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
-    if catalog is None or not Path(catalog).exists():
-        return empty
+_ITEMS: dict[str, tuple] = {}
+
+
+def _stamp(path: Path) -> tuple:
+    """What changes when the database changes (the main file and its write-ahead log)."""
+    parts = []
+    for file in (path, path.with_name(path.name + "-wal")):
+        try:
+            st = file.stat()
+            parts += [st.st_mtime_ns, st.st_size]
+        except OSError:
+            parts += [0, 0]
+    return tuple(parts)
+
+
+def _cached_items(catalog: Path) -> tuple[list[dict], dict]:
+    """Every collected product, read from the database once and kept until the database changes (reading it takes a second)."""
+    path = Path(catalog)
+    stamp = _stamp(path)
+    hit = _ITEMS.get(str(path))
+    if hit is None or hit[0] != stamp:
+        items, counts = _read_items(path)
+        hit = _ITEMS[str(path)] = (stamp, items, counts)
+    return hit[1], hit[2]
+
+
+def _read_items(catalog: Path) -> tuple[list[dict], dict]:
     db = sqlite3.connect(f"file:{Path(catalog).as_posix()}?mode=ro", uri=True)
     db.row_factory = sqlite3.Row
     items = []
@@ -367,6 +388,19 @@ def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = 
     for item in items:
         counts[item["provider"]] = counts.get(item["provider"], 0) + 1
         item["provider_name"] = names.get(item["provider"], item["provider"])
+    return items, counts
+
+
+def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None, max_days: int | None = None,
+                    seed: Path | None = None, sides: int | None = None) -> dict:
+    """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
+    empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
+    if catalog is None or not Path(catalog).exists():
+        return empty
+    base, counts = _cached_items(catalog)
+    items = [dict(i) for i in base]  # the listing adds fields to its own copies
+    order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
+    counts = dict(counts)
     words = catalog_words(q)
     for item in items:
         if item["provider"] != "print24":
