@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.services import manual_prices
 from app.services.cards import CARD_KEYS, CARD_TYPES, card_form
 from app.services.products import product_form
 from app.services.workbench import IDS, PROVIDERS, catalog_listing, general_links, init_db, save_quote, search, suggestions, valid_source
@@ -101,6 +102,39 @@ class QuoteRequest(BaseModel):
     confirmed_equivalent: Literal[True]
 
 
+class ManualPrice(BaseModel):
+    """A price read by a person on the provider's web for one business-card configuration."""
+    model_config = ConfigDict(extra="forbid")
+    provider: str
+    url: str = Field(max_length=1500)
+    title: str = Field(default="Tarjetas de visita", min_length=3, max_length=120)
+    format: str = Field(default="85 x 55 mm", max_length=40)
+    grams: int | None = Field(default=None, ge=50, le=1500)
+    paper_type: str = Field(default="", max_length=40)
+    surface: Literal["", "Mate", "Brillo"] = ""
+    sides: Literal[1, 2] = 1
+    finishing: str = Field(default="Sin", max_length=60)
+    quantity: int = Field(ge=1, le=1000000)
+    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+    tax: Literal["gross", "net"] = "gross"
+    shipping: Literal["included", "excluded", "unknown"] = "included"
+    delivery_days: int | None = Field(default=None, ge=1, le=180)
+    note: str = Field(default="", max_length=300)
+
+    @field_validator("title")
+    @classmethod
+    def business_card(cls, value):
+        text = value.lower()
+        if "tarjeta" not in text or "visita" not in text:
+            raise ValueError("El nombre debe decir «tarjetas de visita»")
+        return value.strip()
+
+
+class ManualPriceId(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: int = Field(ge=1)
+
+
 LOOPBACK = ("127.0.0.1", "::1", "localhost", "testclient")
 
 
@@ -118,6 +152,11 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
     database = database or Path(os.environ.get("PRINT_WORKBENCH_DB", ROOT / "data/workbench.sqlite3"))
     seed = seed or ROOT / "data/catalog_links.json"
     init_db(database)
+    manual_prices.init(database)
+    names = {p["id"]: p["name"] for p in PROVIDERS}
+
+    def manual_items():
+        return manual_prices.items(database, names)
     app = FastAPI(title="Mesa de impresión", docs_url="/api/docs")
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"] if lan else ["127.0.0.1", "localhost", "testserver"])
 
@@ -131,7 +170,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
             same = ("http://127.0.0.1:8765", "http://localhost:8765") + ((f"http://{request.headers.get('host')}",) if lan else ())
             if origin and origin not in same:
                 return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
-            if lan and request.url.path == "/api/quotes" and client not in LOOPBACK:
+            if lan and request.url.path.startswith(("/api/quotes", "/api/manual-prices")) and client not in LOOPBACK:
                 return JSONResponse({"detail": "Solo lectura: los presupuestos se guardan desde el PC que aloja el comparador"}, status_code=403)
             if request.headers.get("content-type", "").split(";")[0] != "application/json":
                 return JSONResponse({"detail": "Se requiere JSON"}, status_code=415)
@@ -148,7 +187,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
 
     @app.get("/api/providers")
     def providers():
-        counts = catalog_listing(catalog, limit=1)["counts"]  # providers with nothing collected are hidden by the web
+        counts = catalog_listing(catalog, limit=1, extra=manual_items())["counts"]  # providers with nothing collected are hidden by the web
         return {"providers": [{**p, "products": counts.get(p["id"], 0)} for p in PROVIDERS]}
 
     @app.get("/api/catalog")
@@ -165,7 +204,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
                 brief = Brief(query="tarjetas de visita", quantity=1, **data).model_dump()
             except (ValueError, TypeError):
                 raise HTTPException(422, "Filtros de tarjetas no válidos")
-        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed, sides)
+        data = catalog_listing(catalog, provider or None, q, limit, offset, brief, quantity, max_days, seed, sides, manual_items())
         data["general"] = general_links(seed, q)
         return data
 
@@ -210,6 +249,28 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         payload = data.model_dump()
         payload["valid_until"] = data.valid_until.isoformat()
         return {"id": save_quote(database, payload)}
+
+    @app.get("/api/manual-prices")
+    def manual_list():
+        return {"items": manual_prices.rows(database)}
+
+    @app.post("/api/manual-prices", status_code=201)
+    def manual_add(data: ManualPrice):
+        if data.provider not in IDS:
+            raise HTTPException(422, "Proveedor desconocido")
+        try:
+            valid = valid_source(data.provider, data.url)
+        except ValueError:
+            valid = False
+        if not valid:
+            raise HTTPException(422, "La URL debe ser HTTPS del proveedor seleccionado")
+        return {"id": manual_prices.add(database, data.model_dump())}
+
+    @app.post("/api/manual-prices/delete")
+    def manual_delete(data: ManualPriceId):
+        if not manual_prices.remove(database, data.id):
+            raise HTTPException(404, "No existe ese precio")
+        return {"deleted": data.id}
 
     app.mount("/assets", StaticFiles(directory=ROOT / "web"), name="assets")
     return app

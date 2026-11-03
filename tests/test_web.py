@@ -559,7 +559,7 @@ def test_matt_or_gloss_and_closest_weight():
     assert entry_matches(op, {**basic, "extras": {**basic["extras"], "surface": "Mate"}}, "onlineprinters", grams_free=True)
     assert not entry_matches(op, {**basic, "extras": {**basic["extras"], "surface": "Brillo"}}, "onlineprinters", grams_free=True)
     near = {i["provider"]: i["near"] for i in near_matches([op, pa], basic, set())}
-    assert near == {"onlineprinters": "300 g en vez de 350 g", "printai": "2 caras en vez de 1 cara"}
+    assert near == {"onlineprinters": "300 g (pediste 350 g)", "printai": "2 caras (pediste 1 cara)"}
     assert near_matches([op, pa], basic, {"onlineprinters", "printai"}) == []  # exact matches need no fallback
 
 
@@ -583,3 +583,41 @@ def test_catalog_is_cached_but_sees_new_prices(tmp_path):
     store.replace_offers(db, "onlineprinters", "https://x.es/p/flyers-a6", "Flyers A6", [{**base, "price": "20.00"}], "2026-10-27", [])
     db.close()
     assert catalog_listing(cat)["counts"]["onlineprinters"] == 2  # the database changed: it is read again
+
+
+MANUAL = {"provider": "onlineprinters", "url": "https://www.onlineprinters.es/p/tarjetas-visitas-4-0-85x55mm", "title": "Tarjetas de visita 4/0 85x55 mm",
+          "format": "85 x 55 mm", "grams": 350, "paper_type": "Estucado / cuché", "surface": "Mate", "sides": 1, "finishing": "Sin",
+          "quantity": 100, "price": "42.25", "tax": "gross", "shipping": "included", "delivery_days": 3, "note": "Visto en la web"}
+BASIC_CARD = {"format": "85 x 55 mm", "material": "350 g/m² Estucado / cuché", "printing": "Sin especificar", "finishing": "Sin",
+              "extras": {"pages": "1 cara", "type": "Estándar"}}
+
+
+def test_manual_price_shows_as_an_exact_card_and_can_be_deleted(tmp_path):
+    cat = _flyer_catalog(tmp_path)  # onlineprinters has pages here, none is a business card
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, cat)) as client:
+        assert client.post("/api/manual-prices", json={**MANUAL, "url": "https://evil.test/x"}).status_code == 422
+        assert client.post("/api/manual-prices", json={**MANUAL, "title": "Flyers"}).status_code == 422
+        assert client.post("/api/manual-prices", json={**MANUAL, "price": "0"}).status_code == 422
+        new_id = client.post("/api/manual-prices", json=MANUAL).json()["id"]
+        client.post("/api/manual-prices", json={**MANUAL, "quantity": 500, "price": "61.00"})
+        got = client.get("/api/catalog", params={"q": "tarjetas de visita", "quantity": 500, "cards": json.dumps(BASIC_CARD)}).json()
+        manual = [i for i in got["items"] if i.get("manual")]
+        assert len(manual) == 1 and not manual[0].get("near") and manual[0]["tiers"] == 2
+        assert manual[0]["at"]["total"] == "61.00" and manual[0]["tax_status"] == "gross"
+        mate = {**BASIC_CARD, "extras": {**BASIC_CARD["extras"], "surface": "Brillo"}}
+        assert not [i for i in client.get("/api/catalog", params={"q": "tarjetas de visita", "cards": json.dumps(mate)}).json()["items"] if i.get("manual")]
+        assert {p["id"]: p["products"] for p in client.get("/api/providers").json()["providers"]}["onlineprinters"] == 3
+        assert len(client.get("/api/manual-prices").json()["items"]) == 2
+        assert client.post("/api/manual-prices/delete", json={"id": new_id}).status_code == 200
+        assert client.post("/api/manual-prices/delete", json={"id": new_id}).status_code == 404
+        assert len(client.get("/api/manual-prices").json()["items"]) == 1
+
+
+def test_manual_prices_are_only_written_from_the_host_pc(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, tmp_path / "c.sqlite3", lan=True), client=("192.168.1.20", 5000)) as client:
+        assert client.post("/api/manual-prices", json=MANUAL, headers={"host": "192.168.1.10:8765"}).status_code == 403
+        assert client.get("/api/manual-prices", headers={"host": "192.168.1.10:8765"}).status_code == 200

@@ -276,10 +276,10 @@ def near_matches(pool: list[dict], brief: dict, have: set[str]) -> list[dict]:
                 best = min(c[0] for c in candidates)
                 for gap, weight, item in candidates:
                     if gap == best:
-                        notes = [f"{weight} g en vez de {weight_asked} g"] if weight_asked and weight != weight_asked else []
+                        notes = [f"{weight} g (pediste {weight_asked} g)"] if weight_asked and weight != weight_asked else []
                         sides = sides_in(item_text(item))
                         if level and sides:
-                            notes.append(f"{'2 caras' if sides == {2} else '1 cara'} en vez de {'1 cara' if sides_asked == {1} else '2 caras'}")
+                            notes.append(f"{'2 caras' if sides == {2} else '1 cara'} (pediste {'1 cara' if sides_asked == {1} else '2 caras'})")
                         found.setdefault(provider, []).append({**item, "near": " · ".join(notes) or "casi igual"})
                 break
     return [i for items in found.values() for i in items]

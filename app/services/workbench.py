@@ -392,13 +392,17 @@ def _read_items(catalog: Path) -> tuple[list[dict], dict]:
 
 
 def catalog_listing(catalog: Path | None, provider: str | None = None, q: str = "", limit: int = 50, offset: int = 0, cards: dict | None = None, quantity: int | None = None, max_days: int | None = None,
-                    seed: Path | None = None, sides: int | None = None) -> dict:
+                    seed: Path | None = None, sides: int | None = None, extra: list[dict] | None = None) -> dict:
     """Everything collected, one row per product (or per variant), cheapest published price and quantity range."""
     empty = {"total": 0, "items": [], "counts": {p["id"]: 0 for p in PROVIDERS}}
     if catalog is None or not Path(catalog).exists():
-        return empty
-    base, counts = _cached_items(catalog)
+        base, counts = [], dict(empty["counts"])
+    else:
+        base, counts = _cached_items(catalog)
     items = [dict(i) for i in base]  # the listing adds fields to its own copies
+    for added in extra or []:  # prices typed in by hand (see manual_prices.py)
+        items.append(dict(added))
+        counts = {**counts, added["provider"]: counts.get(added["provider"], 0) + 1}
     order = {p["id"]: i for i, p in enumerate(PROVIDERS)}
     counts = dict(counts)
     words = catalog_words(q)

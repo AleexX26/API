@@ -62,10 +62,10 @@ def test_tarjetas_traen_los_valores_de_base_y_se_pueden_cambiar(page):
     expect(page.locator("#cc-surface")).to_have_value("")
     expect(page.locator("#cat-table")).to_contain_text("Onlineprinters")
     expect(page.locator("#cat-table")).to_contain_text("Printai")  # su tarjeta es de 300 g: sale como la más parecida
-    expect(page.locator("#cat-table")).to_contain_text("300 g en vez de 350 g")
+    expect(page.locator("#cat-table")).to_contain_text("300 g (pediste 350 g)")
     page.select_option("#cc-grams", "")
     expect(page.locator("#cat-table")).to_contain_text("Printai")
-    expect(page.locator("#cat-table")).not_to_contain_text("en vez de")
+    expect(page.locator("#cat-table")).not_to_contain_text("pediste")
     page.select_option("#cc-surface", "Mate")  # ninguna ficha de prueba dice mate
     expect(page.locator("#cat-table")).not_to_contain_text("Onlineprinters")
 
@@ -78,3 +78,26 @@ def test_no_salen_proveedores_sin_productos(page):
     toggles = page.locator("#provider-toggles").inner_text()
     assert "Truyol" not in toggles and "Stricker" not in toggles
     assert "Truyol" not in page.locator("#cards").inner_text()
+
+
+def test_anotar_un_precio_a_mano_y_borrarlo(page):
+    open_home(page)
+    page.fill("#cat-q", "tarjetas de visita")
+    printai = page.locator(".brand-block", has_text="Printai")
+    expect(printai).to_contain_text("pediste")
+    try:
+        printai.get_by_text("Anotar el precio real").click()
+        expect(page.locator("#manual-dialog")).to_be_visible()
+        page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
+        page.fill("#m-price", "16,63")
+        page.fill("#m-quantity", "500")
+        page.click("#manual-save")
+        expect(page.locator("#cat-table")).to_contain_text("Anotado a mano")
+        expect(page.locator("#manual-count")).to_have_text("1")
+        page.once("dialog", lambda d: d.accept())
+        page.locator("#manual-box summary").click()
+        page.locator(".manual-del").first.click()
+        expect(page.locator("#manual-count")).to_have_text("0")
+    finally:  # la base del servidor de pruebas se comparte entre casos
+        for row in page.request.get(f"{page.base}/api/manual-prices").json()["items"]:
+            page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})
