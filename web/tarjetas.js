@@ -129,6 +129,20 @@ function otherRow(item, qty) {
   return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${price}</td><td>${esc(whatIs(item))}</td></tr>`;
 }
 // Our price against each rival's (both without VAT): more than them = profit margin (green), less = red.
+function diffOf(mineGroup, theirGroup) {
+  const mine = netTotal(mineGroup.best), theirs = netTotal(theirGroup.best), diff = mine - theirs;
+  const kind = Math.abs(diff) < 0.005 ? 'same' : diff > 0 ? 'up' : 'down', sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+  const pct = theirs ? Math.abs(diff / theirs * 100).toFixed(1).replace('.', ',') : '0';
+  return {kind, money: kind === 'same' ? 'igual' : `${sign}${euro(Math.abs(diff))}`, percent: kind === 'same' ? '' : `${sign}${pct} %`};
+}
+const hasPrice = g => offerTotal(g.best) !== null && g.best.tax_status !== 'unknown';
+// On each rival's card, on the left: how our price differs from theirs.
+function diffSide(group, groups) {
+  const own = groups.find(g => g.provider.own);
+  if (group.provider.own || !own || !hasPrice(own) || !hasPrice(group)) return '';
+  const d = diffOf(own, group);
+  return `<div class="diff-side"><span class="diff-label">Nuestra web</span><strong class="diff ${d.kind}">${d.money}</strong>${d.percent ? `<small class="diff ${d.kind}">${d.percent}</small>` : ''}</div>`;
+}
 function diffHtml(group, groups, qty) {
   if (!group.provider.own || offerTotal(group.best) === null || group.best.tax_status === 'unknown') return '';
   const mine = netTotal(group.best);
@@ -144,7 +158,7 @@ function offerCard(group, best, qty, badges, groups = []) {
   const p = group.provider, index = cardsTool.items.indexOf(best), others = group.items.filter(i => i !== best);
   const classes = ['offer', badges.includes('best') ? 'best' : '', p.own ? 'own' : '', best.near ? 'near' : ''].filter(Boolean).join(' ');
   return `<article class="${classes}"><div class="offer-head"><span class="monogram">${esc(p.initials)}</span><div><strong>${esc(p.name)}</strong>${p.own ? ' <span class="tag own">Nuestra web</span>' : ''}${badges.includes('best') ? ' <span class="tag best">Más barato</span>' : ''}</div></div>
- <div class="offer-price">${priceBlock(best, qty)}</div>
+ <div class="offer-price">${diffSide(group, groups)}<div>${priceBlock(best, qty)}</div></div>
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${esc(whatIs(best))}</p>
  ${diffHtml(group, groups, qty)}

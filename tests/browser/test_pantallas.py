@@ -186,3 +186,15 @@ def test_nuestra_web_sale_la_ultima_con_la_diferencia_en_color(page):
     assert color == "rgb(20, 108, 46)"
     pressed(page, "quantity", "1000").click()
     expect(page.locator(".offer.own .diff.same").first).to_contain_text("igual")
+
+
+def test_cada_proveedor_enseña_a_la_izquierda_la_diferencia_con_nuestra_web(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    lado = page.locator(".offer:not(.own) .diff-side").first
+    expect(lado).to_contain_text("Nuestra web")
+    expect(lado.locator("strong.diff.up")).to_contain_text("+10,00")  # 40 frente a 30 sin IVA
+    assert page.locator(".offer.own .diff-side").count() == 0
+    caja = lado.bounding_box()["x"]
+    precio = page.locator(".offer:not(.own) .offer-price .big").first.bounding_box()["x"]
+    assert caja < precio, "la diferencia va a la izquierda del precio"
