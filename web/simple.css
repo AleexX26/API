@@ -94,13 +94,6 @@ main{margin:0;padding:0;max-width:none;display:flex;flex-direction:column}
 .offer.own .monogram{background:var(--us);color:#1a1033}.tag.own{background:var(--us);color:#1a1033}
 .empty-box{background:var(--surf);border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--txt)}
 
-/* Pie: precios anotados y estado de los datos, abren hacia arriba */
-#manual-box,#data-status{position:fixed;bottom:8px;margin:0;z-index:6}
-#manual-box{left:20px}#data-status{right:20px}
-#manual-box>summary,#data-status summary{background:var(--surf2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt);cursor:pointer;list-style:none}
-#manual-box[open]>*:not(summary),#data-status details[open]>*:not(summary){position:absolute;bottom:calc(100% + 6px);left:0;width:min(640px,90vw);max-height:60vh;overflow:auto;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
-#data-status details[open]>*:not(summary){left:auto;right:0}
-#manual-box,#data-status{font-size:12px;color:var(--txt)}
 
 /* Ventanas y avisos en oscuro */
 dialog{background:var(--surf);color:var(--txt);border:1px solid var(--line);border-radius:14px}
@@ -146,16 +139,51 @@ dialog label{color:var(--txt)}
 body{padding-top:12px}
 #finder{margin:0 20px;border:1px solid var(--line);border-radius:14px;padding:8px 14px}
 /* El pedido del cliente: un panel que sale debajo del buscador y del botón amarillo, a todo el ancho */
-.customer-box{position:static}
-.customer-box>.customer-panel{display:none}
-.customer-box[open]>.customer-panel{display:block;position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:30;padding:14px 16px;background:var(--surf);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
 .customer-panel textarea{display:block;width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surf2);color:var(--txt);font-size:14px;resize:vertical}
 .customer-panel textarea::placeholder{color:var(--muted)}
 .customer-actions{display:flex;align-items:center;gap:12px;margin-top:10px}
 #customer-items{margin-top:8px}
-/* Botones de abajo, más visibles */
-#manual-box,#data-status{bottom:14px}
-#manual-box>summary,#data-status summary{background:#273041;border:1px solid #4a5870;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+
+/* El pedido del cliente se abre en su sitio, debajo de la barra, y empuja todo lo demás hacia abajo */
+#finder{grid-template-rows:auto auto auto}
+.customer-box{display:contents}
+.customer-box>summary{grid-column:3;grid-row:1;justify-self:end}
+.customer-box>.customer-panel{display:none}
+.customer-box[open]>.customer-panel{display:block;grid-column:1/-1;grid-row:3;margin-top:4px;padding:12px 0 4px;border-top:1px solid var(--line)}
+@media(max-width:1000px){.customer-box>summary{grid-column:1;grid-row:auto;justify-self:start}}
+/* Precios anotados y estado de los datos: botones en la fila del título; abren hacia abajo a todo el ancho */
+#cards-tool>.results-heading{flex-wrap:wrap;gap:8px 12px;align-items:center}
+#cards-tool>.results-heading>div:first-child{flex:1 1 400px;min-width:0}
+.extras{display:contents}
+#manual-box,#data-status{position:static;margin:0;font-size:13px;color:var(--txt);flex:0 0 auto}
+#manual-box>summary,#data-status summary{display:inline-block;background:#273041;border:1px solid #4a5870;border-radius:10px;padding:7px 14px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;list-style:none}
 #manual-box>summary:hover,#data-status summary:hover{background:#2f3a4f;border-color:#7aa7ff}
-#manual-box{left:28px}#data-status{right:28px}
-#cards-tool{padding-bottom:62px}
+#manual-box[open],#data-status:has(details[open]){flex:0 0 100%}
+#manual-box[open]>*:not(summary),#data-status details[open]>*:not(summary){display:block;position:static;width:auto;margin-top:8px;max-height:34vh;overflow:auto;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px}
+#cards-tool{padding-bottom:12px}
+.customer-box::details-content{display:block;grid-column:1/-1;grid-row:3}
+.customer-box[open]>.customer-panel{grid-column:auto;grid-row:auto}
+@media(min-width:1000px) and (min-height:560px){main{overflow-y:auto;overflow-x:hidden}#tool-results{min-height:150px}}
+.customer-panel textarea{height:70px}
+
+/* «Ver más» de un proveedor: lista compacta que cabe en la tarjeta, sin mover de lado */
+.offer .comparison-box{padding:4px 8px;margin:6px 0 0;max-height:190px;overflow-y:auto;overflow-x:hidden}
+.offer .comparison-box table{display:block;width:100%;font-size:12px}
+.offer .comparison-box thead{display:none}
+.offer .comparison-box tbody{display:block}
+.offer .comparison-box tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;padding:6px 0;border-top:1px solid var(--line)}
+.offer .comparison-box tr:first-child{border-top:0}
+.offer .comparison-box td{display:block;padding:0;border:0;min-width:0;overflow-wrap:anywhere;text-align:left}
+.offer .comparison-box td:nth-child(2){text-align:right;white-space:nowrap;font-weight:700}
+.offer .comparison-box td:nth-child(3){grid-column:1/-1;font-size:11px;color:var(--muted)}
+.offer .comparison-box .auto-note{font-size:11px}
+.offer .result-links{margin:4px 0 0;padding-left:16px;font-size:12px}
+/* «Ver más» arriba a la derecha de la tarjeta; la lista sale encima del contenido de la propia tarjeta */
+.offer{position:relative}
+.offer .auto-more-products{margin:0}
+.offer .auto-more-products>summary{position:absolute;top:10px;right:12px;z-index:4;background:var(--surf2);border:1px solid #4a5870;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700;color:#fff;list-style:none}
+.offer .auto-more-products[open]>*:not(summary){position:absolute;left:8px;right:8px;top:50px;bottom:8px;z-index:3;background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:8px;max-height:none;overflow:auto;margin:0}
+.offer.own .auto-more-products[open]>*:not(summary){background:var(--us-bg)}
+.offer-head{padding-right:96px}
+@media(max-width:1000px){#cards-tool>.results-heading>div:first-child{flex:1 1 100%}}
+@media(max-width:1000px){#manual-box,#data-status{flex:1 1 40%;min-width:0}#manual-box>summary,#data-status summary{display:block;text-align:center}#data-status{margin:0!important}}
