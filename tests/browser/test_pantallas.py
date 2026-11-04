@@ -192,14 +192,14 @@ def test_anotar_varias_cantidades_de_golpe(page):
 def test_nuestra_web_sale_la_ultima_con_la_diferencia_en_color(page):
     open_home(page)
     pressed(page, "quantity", "500").click()
-    expect(page.locator(".offer.own .diff-box")).to_be_visible()
+    expect(page.locator(".offer.own .diff-box, .offer.own .diff-side")).to_have_count(0)  # nuestra tarjeta no lleva recuadro de diferencias
     nombres = page.locator(".offer .offer-head strong").all_inner_texts()
     assert nombres[-1] != nombres[0] and page.locator(".offer").last.get_attribute("class").find("own") >= 0
-    expect(page.locator(".offer.own .diff.up").first).to_contain_text("+")  # 40 sin IVA frente a 30: cobramos mas, en verde
-    color = page.locator(".offer.own .diff.up").first.evaluate("e => getComputedStyle(e).color")
+    expect(page.locator(".offer:not(.own) .diff-side .diff.up").first).to_contain_text("+")  # 40 sin IVA frente a 30: cobramos mas, en verde
+    color = page.locator(".offer:not(.own) .diff-side .diff.up").first.evaluate("e => getComputedStyle(e).color")
     assert color == "rgb(74, 222, 128)"
     pressed(page, "quantity", "1000").click()
-    expect(page.locator(".offer.own .diff.same").first).to_contain_text("igual")
+    expect(page.locator(".offer:not(.own) .diff-side .diff.same").first).to_contain_text("igual")
 
 
 def test_cada_proveedor_enseña_a_la_izquierda_la_diferencia_con_nuestra_web(page):

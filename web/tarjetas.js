@@ -143,17 +143,6 @@ function diffSide(group, groups) {
   const d = diffOf(own, group);
   return `<div class="diff-side"><span class="diff-label">Nuestra web</span><strong class="diff ${d.kind}">${d.money}</strong>${d.percent ? `<small class="diff ${d.kind}">${d.percent}</small>` : ''}</div>`;
 }
-function diffHtml(group, groups, qty) {
-  if (!group.provider.own || offerTotal(group.best) === null || group.best.tax_status === 'unknown') return '';
-  const mine = netTotal(group.best);
-  const rows = groups.filter(g => !g.provider.own && offerTotal(g.best) !== null && g.best.tax_status !== 'unknown').map(g => {
-    const theirs = netTotal(g.best), diff = mine - theirs, pct = theirs ? diff / theirs * 100 : 0;
-    const kind = Math.abs(diff) < 0.005 ? 'same' : diff > 0 ? 'up' : 'down', sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
-    const text = kind === 'same' ? 'igual' : `${sign}${euro(Math.abs(diff))} (${sign}${Math.abs(pct).toFixed(1).replace('.', ',')} %)`;
-    return `<li><span>${esc(g.provider.name)} ${euro(theirs)}${g.best.near ? ' <small>(ficha parecida)</small>' : ''}</span><strong class="diff ${kind}">${text}</strong></li>`;
-  });
-  return rows.length ? `<div class="diff-box"><div class="diff-title">Diferencia con los demás (sin IVA)</div><ul>${rows.join('')}</ul><div class="auto-note">Verde: cobramos más que ellos (beneficio sobre su precio). Rojo: cobramos menos.</div></div>` : '';
-}
 function offerCard(group, best, qty, badges, groups = []) {
   const p = group.provider, index = cardsTool.items.indexOf(best), others = group.items.filter(i => i !== best);
   const classes = ['offer', badges.includes('best') ? 'best' : '', p.own ? 'own' : '', best.near ? 'near' : ''].filter(Boolean).join(' ');
@@ -161,7 +150,6 @@ function offerCard(group, best, qty, badges, groups = []) {
  <div class="offer-price">${diffSide(group, groups)}<div>${priceBlock(best, qty)}</div></div>
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${esc(whatIs(best))}</p>
- ${diffHtml(group, groups, qty)}
  ${best.near ? `<p class="offer-near">Es el precio de la configuración por defecto de la ficha: ${esc(best.near)}. En la web quizá se pueda pedir lo que quieres con otro precio.</p>` : ''}
  <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;

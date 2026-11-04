@@ -23,11 +23,7 @@ main{margin:0;padding:0;max-width:none;display:flex;flex-direction:column}
 .customer-box{grid-column:3;grid-row:1;margin:0;padding:0;background:transparent;border:0;position:relative}
 .customer-box>summary{list-style:none;display:inline-flex;align-items:center;padding:9px 16px;border-radius:10px;background:var(--sun);color:#1a1500;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
 .customer-box>summary::-webkit-details-marker{display:none}
-.customer-box[open]>*:not(summary){position:absolute;right:0;top:calc(100% + 8px);width:min(560px,92vw);z-index:20}
-.customer-box[open]>textarea{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surf);color:var(--txt);box-shadow:0 18px 40px rgba(0,0,0,.55);font-size:14px}
-.customer-box[open]>textarea~*{top:auto}
 .customer-box[open]{background:transparent}
-.customer-box .customer-actions{position:static!important;width:auto!important}
 
 /* Características, lo más barato y los contenedores en una sola pantalla */
 #cards-tool{display:flex;flex-direction:column;gap:10px;padding:12px 20px 52px;min-height:0}
@@ -145,3 +141,21 @@ dialog label{color:var(--txt)}
 #finder #cat-chips span{color:var(--muted);font-weight:600;background:transparent;border:0;padding:3px 2px}
 @media(max-width:1000px){#finder #cat-chips{grid-column:1;grid-row:auto}}
 #finder #cat-chips{scrollbar-width:thin}
+
+/* Margen arriba y barra superior como tarjeta */
+body{padding-top:12px}
+#finder{margin:0 20px;border:1px solid var(--line);border-radius:14px;padding:8px 14px}
+/* El pedido del cliente: un panel que sale debajo del buscador y del botón amarillo, a todo el ancho */
+.customer-box{position:static}
+.customer-box>.customer-panel{display:none}
+.customer-box[open]>.customer-panel{display:block;position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:30;padding:14px 16px;background:var(--surf);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+.customer-panel textarea{display:block;width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surf2);color:var(--txt);font-size:14px;resize:vertical}
+.customer-panel textarea::placeholder{color:var(--muted)}
+.customer-actions{display:flex;align-items:center;gap:12px;margin-top:10px}
+#customer-items{margin-top:8px}
+/* Botones de abajo, más visibles */
+#manual-box,#data-status{bottom:14px}
+#manual-box>summary,#data-status summary{background:#273041;border:1px solid #4a5870;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+#manual-box>summary:hover,#data-status summary:hover{background:#2f3a4f;border-color:#7aa7ff}
+#manual-box{left:28px}#data-status{right:28px}
+#cards-tool{padding-bottom:62px}
