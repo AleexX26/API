@@ -1,0 +1,88 @@
+/* Capa de diseño sencilla para administración: papel cálido, tinta oscura, verde = más barato, violeta = nuestra web.
+   Se carga después de style.css y lo sustituye en lo visible. Sin estilos en línea (CSP). */
+:root{--paper:#f4f1ea;--card:#fffdf8;--ink:#16181d;--muted:#555a64;--line:#d6d0c2;--good:#0a6a37;--good-bg:#def3e4;--bad:#b3261e;--bad-bg:#fbe3e0;--us:#6b46c1;--us-bg:#f3effb;--sun:#ffd84a;--teal:#16181d;--shadow:0 1px 2px rgba(22,24,29,.07),0 10px 26px -14px rgba(22,24,29,.28)}
+html{scroll-behavior:auto}
+body{background:var(--paper);color:var(--ink);font:16px/1.5 'Segoe UI',system-ui,Arial,sans-serif;font-variant-numeric:tabular-nums;caret-color:var(--us);scrollbar-color:#9a947f var(--paper)}
+::selection{background:var(--sun);color:var(--ink)}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.sidebar,main>header,.eyebrow,footer,#finder>.results-heading,#finder-note,#cards-tool>.results-heading .eyebrow{display:none!important}
+main{margin:0 auto;padding:22px 28px 60px;max-width:1500px}
+h2{letter-spacing:-.01em}
+
+/* Buscador y pedido del cliente */
+#finder{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 16px;align-items:start;margin:0 0 18px}
+#finder .catalog-search{margin:0;padding:6px 8px 6px 18px;border:2px solid var(--ink);border-radius:14px;background:#fff;grid-column:1}
+#finder .catalog-search input{font-size:18px;padding:10px 4px}
+#finder .catalog-search button,.primary,button.primary{background:var(--ink);border:2px solid var(--ink);color:#fff;border-radius:10px;font-weight:700;padding:10px 20px}
+#finder .catalog-search button:hover,.primary:hover{background:#2d313b}
+#finder .suggestions{grid-column:1;margin:0}
+#cat-applied{grid-column:1}
+.customer-box{grid-column:2;grid-row:1;margin:0;padding:0;background:transparent;border:0;position:relative}
+.customer-box>summary{list-style:none;display:inline-flex;align-items:center;gap:8px;padding:15px 22px;border-radius:14px;background:var(--sun);color:var(--ink);font-weight:800;font-size:16px;cursor:pointer;box-shadow:var(--shadow);white-space:nowrap}
+.customer-box>summary::-webkit-details-marker{display:none}
+.customer-box[open]{grid-column:1/-1;grid-row:auto;padding:16px 18px;background:var(--card);border:2px solid var(--sun);border-radius:14px}
+.customer-box[open]>summary{margin-bottom:10px}
+.customer-box textarea{font-size:16px;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+
+/* Pantalla principal: pedido a la izquierda, respuesta a la derecha */
+#cards-tool{display:grid;grid-template-columns:minmax(330px,400px) minmax(0,1fr);grid-template-areas:"head head" "steps best" "steps results";gap:16px 24px;align-items:start}
+#cards-tool>.results-heading{grid-area:head;margin:0}
+#cards-tool>.results-heading h2{font-size:26px;margin:0;font-weight:800}
+#tool-summary{margin:2px 0 0;color:var(--muted);font-size:14px}
+.tool-steps{grid-area:steps;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;margin:0;padding:20px;gap:20px;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+#tool-best{grid-area:best;min-width:0}
+#tool-results{grid-area:results;min-width:0;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.step{grid-template-columns:1fr;gap:8px}
+.step-label{font-size:15px;font-weight:800;color:var(--ink)}
+.pill{border:2px solid var(--line);background:#fff;color:var(--ink);padding:9px 16px;font-size:15px;font-weight:600;border-radius:12px;min-height:42px}
+.pill:hover{border-color:var(--ink)}
+.pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.pill small{font-size:12px;font-weight:600}
+.pill-select,.pill-input{border:2px dashed #8b8570;border-radius:12px;padding:9px 12px;font-size:15px;min-height:42px;background:#fff;color:var(--ink)}
+.pill-select.on,.pill-input.on{border:2px solid var(--ink);font-weight:700}
+.tool-more summary{color:var(--ink);font-weight:700;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.more-grid{grid-template-columns:1fr 1fr}
+.step-actions button,#tool-reset{background:transparent;border:2px solid var(--line);border-radius:10px;padding:8px 14px;font-weight:700;color:var(--ink)}
+
+/* La respuesta: quién es más barato, grande */
+.best-banner{background:var(--ink);color:#fff;border:0;border-radius:20px;padding:24px 28px;margin:0;box-shadow:var(--shadow)}
+.best-banner p{margin:0}
+.hero-label{font-size:15px;font-weight:600;color:#cfd3dc}
+.hero-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 28px;margin:6px 0 4px}
+.hero-name{font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.hero-price{font-size:46px;font-weight:800;letter-spacing:-.03em;color:#74e69a;line-height:1.1}
+.hero-price small{font-size:17px;font-weight:600;color:#cfd3dc;letter-spacing:0}
+.hero-sub{font-size:16px;color:#e4e7ee}
+.hero-us{margin-top:16px!important;padding:14px 18px;border-radius:14px;background:rgba(255,255,255,.1);font-size:17px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+.hero-us strong{font-size:26px;font-weight:800}
+.hero-us .diff.up{color:#74e69a}.hero-us .diff.down{color:#ff9d95}.hero-us .diff.same{color:#e4e7ee}
+.hero-note{margin-top:10px!important;font-size:14px;color:#ffe08a}
+
+/* Una tarjeta por proveedor */
+.offer{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;gap:12px;box-shadow:var(--shadow)}
+.offer.best{border:3px solid var(--good)}
+.offer .monogram{background:var(--ink);color:#fff;border-radius:10px}
+.offer-head strong{font-size:18px}
+.tag{font-size:12px;padding:3px 10px;border-radius:8px}
+.tag.best{background:var(--good);color:#fff}
+.offer-price .big{font-size:34px;font-weight:800}
+.offer-price .tax{font-size:14px}
+.offer-price .with-iva{font-size:15px;color:var(--ink)}
+.diff-side{background:#efece3;border-radius:12px;padding:8px 12px;min-width:104px}
+.diff-side:has(.diff.up){background:var(--good-bg)}.diff-side:has(.diff.down){background:var(--bad-bg)}
+.diff-label{font-size:12px;color:var(--muted);font-weight:600}
+.diff-side strong{font-size:22px;font-weight:800}.diff-side small{font-size:14px;font-weight:700}
+.diff.up{color:var(--good)}.diff.down{color:var(--bad)}.diff.same{color:var(--muted)}
+.offer.own,.offer.own.best{background:var(--us-bg);border:3px solid var(--us)}
+.offer.own .monogram,.tag.own{background:var(--us);color:#fff}
+.offer .go-button{background:var(--ink);color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;text-decoration:none}
+.offer .outline{border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:10px;padding:8px 14px;font-weight:700}
+.chip{font-size:12px;border-radius:8px;padding:3px 10px}
+.offer-near{border-radius:10px}
+
+/* Lo secundario queda plegado y discreto */
+.auto-more-products>summary,.other-tools>summary{color:var(--ink);font-weight:700;cursor:pointer}
+#other-tools{display:none}
+@media(max-width:1000px){#cards-tool{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "best" "steps" "results"}.tool-steps{position:static;max-height:none}#finder{grid-template-columns:minmax(0,1fr)}.catalog-search,.suggestions{min-width:0}.customer-box{grid-column:1;grid-row:auto}.hero-name{font-size:30px}.hero-price{font-size:36px}main{padding:16px}}
+#tool-results{grid-template-columns:repeat(auto-fill,minmax(min(360px,100%),1fr))}
+.offer-price{flex-wrap:wrap;gap:10px 16px}.offer-price .big{white-space:nowrap}.offer-price .tax{white-space:nowrap}

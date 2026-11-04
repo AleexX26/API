@@ -171,13 +171,16 @@ function bestBanner(groups, qty) {
   const exact = priced.filter(x => !x.item.near), pool = exact.length ? exact : priced;
   if (!pool.length) return '';
   const cheapest = pool.reduce((m, x) => offerTotal(x.item) < offerTotal(m.item) ? x : m);
-  let html = `<p><strong>Lo más barato para este pedido:</strong> ${esc(cheapest.g.provider.name)} · ${euro(netTotal(cheapest.item))} sin IVA (${euro(offerTotal(cheapest.item))} con IVA, ${euro(netTotal(cheapest.item) / qty)}/ud sin IVA)${exact.length ? '' : ' · ninguna ficha coincide exactamente: precios de configuraciones parecidas'}</p>`;
   const own = pool.find(x => x.g.provider.own), rivals = pool.filter(x => !x.g.provider.own);
-  if (own && rivals.length) {
-    const rival = rivals.reduce((m, x) => offerTotal(x.item) < offerTotal(m.item) ? x : m), diff = (offerTotal(own.item) / offerTotal(rival.item) - 1) * 100;
-    html += `<p>Nuestra web: ${euro(netTotal(own.item))} sin IVA · la competencia más barata es ${esc(rival.g.provider.name)} con ${euro(netTotal(rival.item))} sin IVA: ${Math.abs(diff) < 0.5 ? 'estamos igual' : diff < 0 ? `somos un ${Math.abs(diff).toFixed(1).replace('.', ',')} % más baratos` : `somos un ${diff.toFixed(1).replace('.', ',')} % más caros`}.</p>`;
+  const rival = rivals.length ? rivals.reduce((m, x) => offerTotal(x.item) < offerTotal(m.item) ? x : m) : null;
+  let us = '';
+  if (own && rival) {
+    const d = diffOf(own.g, rival.g);
+    const words = d.kind === 'same' ? 'Cobramos lo mismo que' : d.kind === 'up' ? 'Cobramos más que' : 'Cobramos menos que';
+    us = `<p class="hero-us"><span>${words} ${esc(rival.g.provider.name)}, el proveedor más barato:</span> <strong class="diff ${d.kind}">${d.money}${d.percent ? ` (${d.percent})` : ''}</strong></p>`;
   }
-  return `<div class="best-banner">${html}</div>`;
+  const note = exact.length ? '' : '<p class="hero-note">Ninguna ficha coincide exactamente: son precios de configuraciones parecidas.</p>';
+  return `<div class="best-banner"><p class="hero-label">Lo más barato para este pedido</p><div class="hero-main"><span class="hero-name">${esc(cheapest.g.provider.name)}</span><span class="hero-price">${euro(netTotal(cheapest.item))} <small>sin IVA</small></span></div><p class="hero-sub">${euro(offerTotal(cheapest.item))} con IVA · ${euro(netTotal(cheapest.item) / qty)}/ud sin IVA</p>${us}${note}</div>`;
 }
 function renderResults(items, qty, links = []) {
   cardsTool.items = items;

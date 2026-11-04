@@ -78,15 +78,24 @@ def test_no_salen_proveedores_sin_productos(page):
     assert "Onlineprinters" in toggles
 
 
-def test_menu_visible_tras_scroll(page):
+def test_pantalla_sencilla_sin_menu_lateral_y_con_el_buscador_a_la_vista(page):
     open_home(page)
+    expect(page.locator(".sidebar")).to_be_hidden()
+    expect(page.locator("#cat-q")).to_be_visible()
+    expect(page.locator("#customer-box summary")).to_be_visible()
     page.mouse.wheel(0, 1500)
     page.wait_for_timeout(300)
-    nav = page.locator(".sidebar").bounding_box()
-    if page.size == "escritorio":
-        assert nav and nav["x"] >= 0 and nav["y"] >= 0, "el menú lateral debe seguir visible"
-    else:
-        assert nav is not None  # en móvil basta con que exista y no tape la página
+    if page.size == "escritorio":  # el pedido se queda a la vista mientras se mira la respuesta
+        assert page.locator("#tool-steps").evaluate("e => getComputedStyle(e).position") == "sticky"  # el pedido acompaña a la respuesta
+
+
+def test_lo_mas_barato_sale_grande_arriba(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    expect(page.locator(".best-banner .hero-name")).to_have_text("Onlineprinters")
+    expect(page.locator(".best-banner .hero-price")).to_contain_text("30,00")
+    assert page.locator(".best-banner .hero-price").evaluate("e => parseFloat(getComputedStyle(e).fontSize)") >= 36
+    expect(page.locator(".best-banner .hero-us .diff.up")).to_contain_text("+10,00")
 
 
 def test_anotar_un_precio_a_mano_y_borrarlo(page):
@@ -183,7 +192,7 @@ def test_nuestra_web_sale_la_ultima_con_la_diferencia_en_color(page):
     assert nombres[-1] != nombres[0] and page.locator(".offer").last.get_attribute("class").find("own") >= 0
     expect(page.locator(".offer.own .diff.up").first).to_contain_text("+")  # 40 sin IVA frente a 30: cobramos mas, en verde
     color = page.locator(".offer.own .diff.up").first.evaluate("e => getComputedStyle(e).color")
-    assert color == "rgb(20, 108, 46)"
+    assert color == "rgb(10, 106, 55)"
     pressed(page, "quantity", "1000").click()
     expect(page.locator(".offer.own .diff.same").first).to_contain_text("igual")
 
@@ -197,7 +206,7 @@ def test_cada_proveedor_enseña_a_la_izquierda_la_diferencia_con_nuestra_web(pag
     assert page.locator(".offer.own .diff-side").count() == 0
     caja = lado.bounding_box()["x"]
     precio = page.locator(".offer:not(.own) .offer-price .big").first.bounding_box()["x"]
-    assert caja < precio, "la diferencia va a la izquierda del precio"
+    assert caja <= precio, "la diferencia va a la izquierda del precio (o encima si no cabe)"
 
 
 def test_nuestra_web_tiene_otro_color_que_los_proveedores(page):
