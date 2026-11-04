@@ -360,3 +360,18 @@ def test_los_proveedores_ocupan_todo_el_ancho_con_hasta_cuatro_por_fila(page):
         for row in (first_row, last_row):  # every row fills the width of the area
             assert abs(min(b["x"] for b in row) - area["x"]) < 2 and abs(max(b["x"] + b["width"] for b in row) - (area["x"] + area["width"])) < 3, (rivals, row)
 
+
+
+def test_con_un_panel_abierto_se_puede_bajar_por_la_pagina_entera(page):
+    open_home(page)
+    for panel in ("#manual-box", "#data-status details"):
+        page.locator(f"{panel} > summary").first.click()
+        expect(page.locator(f"{panel}[open]").first).to_be_visible()
+        page.wait_for_timeout(300)
+        ultima = page.locator(".offer").last
+        ultima.scroll_into_view_if_needed()  # si la página no deja bajar, la última tarjeta queda fuera de la ventana
+        caja = ultima.bounding_box()
+        assert caja and caja["y"] < page.viewport_size["height"], f"{panel}: no se llega a la última tarjeta"
+        ancho = page.evaluate("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+        assert ancho[0] <= ancho[1], f"{panel}: scroll horizontal {ancho}"
+        page.locator(f"{panel} > summary").first.click()
