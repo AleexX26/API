@@ -310,3 +310,30 @@ def test_la_configuracion_no_rompe_la_pantalla_unica(page):
     if page.size == "escritorio":
         alto = page.evaluate("[document.documentElement.scrollHeight, innerHeight]")
         assert alto[0] <= alto[1]
+
+
+def test_se_puede_anotar_un_precio_desde_cualquier_proveedor(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    tarjetas, botones = page.locator(".offer"), page.locator(".offer .tool-manual")
+    expect(tarjetas.first).to_be_visible()
+    assert tarjetas.count() == botones.count() >= 3  # un botón en todas, también en la nuestra de arriba
+    page.locator(".offer:not(.own)", has_text="Onlineprinters").locator(".tool-manual").click()
+    expect(page.locator("#manual-dialog")).to_be_visible()
+    expect(page.locator("#m-provider")).to_have_value("onlineprinters")
+    assert page.input_value("#m-url").startswith("https://example.test/onlineprinters")
+    assert page.input_value("#m-quantity") == "500"
+    page.click("#close-manual")
+    page.locator("#tool-best .offer.own .tool-manual").click()  # la nuestra
+    expect(page.locator("#m-provider")).to_have_value("laimprentadeinternet")
+    page.click("#close-manual")
+
+
+def test_el_panel_de_precios_anotados_tiene_su_boton_para_anotar(page):
+    open_home(page)
+    page.locator("#manual-box summary").click()
+    expect(page.locator("#manual-add")).to_be_visible()
+    page.click("#manual-add")
+    expect(page.locator("#manual-dialog")).to_be_visible()
+    expect(page.locator("#manual-heading")).to_have_text("Anotar el precio que ves en la web")
+    page.click("#close-manual")

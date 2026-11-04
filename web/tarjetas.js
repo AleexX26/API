@@ -228,7 +228,7 @@ function ownLinksCard(group) {
   return `<article class="offer own no-price"><div class="offer-head"><span class="monogram">${esc(p.initials)}</span><div><strong>${esc(p.name)}</strong> <span class="tag own">Nuestra web</span></div></div>
  <div class="offer-price"><div><div class="big muted">Sin precio aquí</div><div class="per">El precio está en nuestra web</div></div></div>
  <p class="offer-what">${esc(first.title)}</p>
- <div class="offer-actions"><a class="go-button" href="${esc(first.url)}" target="_blank" rel="noopener noreferrer">Ver en nuestra web ↗</a></div>
+ <div class="offer-actions"><a class="go-button" href="${esc(first.url)}" target="_blank" rel="noopener noreferrer">Ver en nuestra web ↗</a><button type="button" class="outline tool-manual-link" data-provider="${esc(p.id)}" data-url="${esc(first.url)}" data-title="${esc(first.title)}">✎ Anotar precio</button></div>
  ${rest.length ? `<ul class="result-links">${rest.slice(0, 4).map(l => `<li>${link(l)}</li>`).join('')}</ul>` : ''}</article>`;
 }
 function offerCard(group, best, qty, badges, groups = []) {
@@ -241,7 +241,7 @@ function offerCard(group, best, qty, badges, groups = []) {
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${whatHtml(best)}</p>
  ${best.near ? `<p class="offer-near">Precio de la ficha por defecto: ${esc(best.near)}. Quizá en su web se pueda pedir lo tuyo a otro precio.</p>` : ''}
- <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
+ <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a><button type="button" class="outline tool-manual" data-index="${index}">✎ ${best.near ? 'Anotar el precio real' : 'Anotar precio'}</button>${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
 }
 function bestBanner(groups, qty) {
@@ -324,6 +324,12 @@ function chrome() {
   $('tool-best').innerHTML = '';
   $('tool-results').innerHTML = '';
 }
+// The manual-price dialog starts on what is chosen on the screen: the card buttons, or the product that was searched
+function manualFillFor() {
+  if (cardsTool.mode !== 'generic') return manualFill();
+  const f = generic.filters, pick = name => Object.entries(f).find(([k]) => plain(k) === name)?.[1] || '';
+  return {format: pick('formato'), grams: '', paper_type: '', surface: '', sides: '1', finishing: 'Sin', quantity: generic.quantity};
+}
 function manualFill() {
   const s = cardsTool.state;
   return {format: s.format, grams: (s.grams.match(/\d+/) || [''])[0], paper_type: s.paper_type, surface: s.surface, sides: /2/.test(s.pages) ? '2' : '1', finishing: s.finishing || 'Sin', quantity: s.quantity};
@@ -394,9 +400,11 @@ window.initCardsTool = async function () {
     if (target.matches('.pill-select') && target.value === '') return renderSteps();  // "Otro…" is only the label
     if (target.matches('select, input')) change(target.dataset.key, target.value);
   });
-  $('tool-results').addEventListener('click', event => {
-    const button = event.target.closest('.tool-manual');
-    if (button) openManual(cardsTool.items[Number(button.dataset.index)], manualFill());
+  // The cards of the providers are in #tool-results, ours (on top) is in #tool-best
+  for (const box of [$('tool-results'), $('tool-best')]) box.addEventListener('click', event => {
+    const button = event.target.closest('.tool-manual'), link = event.target.closest('.tool-manual-link');
+    if (button) openManual(cardsTool.items[Number(button.dataset.index)], manualFillFor());
+    if (link) openManual({provider: link.dataset.provider, url: link.dataset.url, title: link.dataset.title}, manualFillFor());
     if (event.target.closest('.tool-edit-manual')) {
       $('manual-box').open = true;
       $('manual-box').scrollIntoView({block: 'start'});
