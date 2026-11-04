@@ -80,8 +80,8 @@ goto entorno
 :omitirdatos
 echo Se mantienen los datos que ya habia en este PC.
 :entorno
-if exist "%DEST%\herramientas\preparar_pc_nuevo.cmd" (
-  call "%DEST%\herramientas\preparar_pc_nuevo.cmd"
+if exist "%DEST%\herramientas\Herramientas.cmd" (
+  call "%DEST%\herramientas\Herramientas.cmd" preparar
 )
 
 echo.

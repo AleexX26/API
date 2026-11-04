@@ -1,18 +1,20 @@
 # Herramientas
 
 Lo que se usa a diario está fuera, en la carpeta principal: **`Abrir comparador.cmd`** y
-**`Abrir comparador para la oficina.cmd`**. Aquí está todo lo demás, para instalar, recoger datos y pasar el proyecto a otro PC.
+**`Abrir comparador para la oficina.cmd`**. Aquí hay solo dos archivos:
 
 | Archivo | Qué hace | Cuándo |
 |---|---|---|
+| `Herramientas.cmd` | Menú con todo lo demás (ver abajo). También acepta argumento: `Herramientas.cmd recoger`, `importar`, `estado`, `parar`, `preparar`, `empaquetar` | Doble clic |
 | `instalar_todo.bat` | Instala Git y Python, descarga el código de GitHub, descomprime `API-datos.zip` y prepara el entorno | PC nuevo, desde cero. Se puede copiar suelto al PC nuevo |
-| `preparar_pc_nuevo.cmd` | Crea el entorno de Python e instala lo necesario, y pasa los tests | Una vez, tras copiar la carpeta (lo llama `instalar_todo.bat`) |
-| `empaquetar_para_otro_pc.cmd` | Crea `dist\API-para-otro-pc.zip` con todo lo necesario | Para llevar el proyecto entero a otro PC |
-| `recogida\reanudar_recogida.cmd` | Recoge Onlineprinters y Printai en segundo plano | Para ampliar los datos (en UN solo PC a la vez) |
-| `recogida\recoger_print24.cmd` | Recoge las fichas de Print24 que faltan | Idem |
-| `recogida\recoger_nuestra_web.cmd` | Lee en un navegador los precios de tarjetas de nuestra web (todas las combinaciones, ≈8 min) | Para actualizar nuestros precios |
-| `importar_tarifa_propia.cmd` | Carga los precios de venta de nuestra web desde el Excel de tarifas (arrastra el `.xlsx` encima) | Cuando cambie la tarifa |
-| `recogida\estado_recogida.cmd` | Muestra cuántas páginas hay de cada proveedor y qué falta | Para ver cómo va |
-| `recogida\parar_recogida.cmd` | Para todas las recogidas sin perder lo guardado | Antes de empaquetar o de cambiar de PC |
 
-Todos los scripts se pueden ejecutar con doble clic desde cualquier sitio: ellos mismos se colocan en la carpeta del proyecto.
+Opciones del menú de `Herramientas.cmd`:
+
+1. **Recoger datos (todo en uno)**: fichas y características de Print24, más cantidades de Print24 hasta 1000, precios de nuestra web (≈8 min) y, si dices que sí, Onlineprinters y Printai en segundo plano (≈3 h). Lo ya descargado no se vuelve a pedir. En UN solo PC a la vez.
+2. **Importar el Excel de tarifas** de nuestra web (arrastra el `.xlsx` o escribe la ruta). Cuando cambie la tarifa.
+3. **Ver cómo va** la recogida.
+4. **Parar la recogida** sin perder lo guardado (antes de empaquetar o cambiar de PC).
+5. **Preparar este PC**: crea el entorno de Python, instala lo necesario y pasa los tests. Una vez.
+6. **Empaquetar** `dist\API-para-otro-pc.zip` para llevar el proyecto a otro PC.
+
+Se ejecuta con doble clic desde cualquier sitio: se coloca solo en la carpeta del proyecto.

@@ -22,19 +22,18 @@ El código viaja por GitHub (`git push` / `git pull`) y los datos por ZIP, porqu
 
 | Para | Haz doble clic en |
 |---|---|
-| Onlineprinters y Printai | `herramientas\recogida\reanudar_recogida.cmd` |
-| Fichas de Print24 | `herramientas\recogida\recoger_print24.cmd` |
-| Ver cómo va | `herramientas\recogida\estado_recogida.cmd` |
-| Pararlo | `herramientas\recogida\parar_recogida.cmd` |
+| Recoger todo (Print24, cantidades, nuestra web y, si quieres, Onlineprinters y Printai) | `herramientas\Herramientas.cmd` → 1 |
+| Ver cómo va | `herramientas\Herramientas.cmd` → 3 |
+| Pararlo | `herramientas\Herramientas.cmd` → 4 |
 
 - Las recogidas respetan las reglas del proyecto: `robots.txt`, 5 s entre peticiones, sin cuentas ni cookies (ver `CLAUDE.md`).
 - Lo ya descargado sale de `data\cache` y no se vuelve a pedir; solo se piden las páginas que faltan.
 - Mientras dure, en Configuración → Sistema → Energía pon «Suspender: nunca». Si el PC se apaga, no se pierde nada: vuelve a lanzarlo.
-- TusKamisetas (15.468 productos, unas 21 h) no se incluye por defecto; para añadirlo, quita el `rem` de su línea en `reanudar_recogida.cmd`.
+- TusKamisetas (15.468 productos, unas 21 h) no se incluye por defecto; para añadirlo, añade su línea (`app.collectors.tuskamisetas --sitemap`) en `:recoger` de `Herramientas.cmd`.
 
 ## Pasar los datos entre PC
 
-1. En el PC que recogió: `herramientas\recogida\parar_recogida.cmd` y luego `herramientas\empaquetar_para_otro_pc.cmd`
+1. En el PC que recogió: `herramientas\Herramientas.cmd` → 4 (parar) y luego `herramientas\Herramientas.cmd` → 6 (empaquetar)
    (crea `dist\API-para-otro-pc.zip`). Para solo los datos, comprime la carpeta `data` en `API-datos.zip`.
 2. Copia el ZIP al otro PC y descomprímelo en la carpeta `API` (los datos van en `API\data`).
 3. **Cuidado:** esto sustituye la base de datos del destino. Si los dos PC han recogido cosas distintas, hace falta unirlas
@@ -46,5 +45,5 @@ El código viaja por GitHub (`git push` / `git pull`) y los datos por ZIP, porqu
 - No se traslada la prueba de variaciones de Print24 (navegador): está sin ejecutar. Las otras configuraciones de Print24
   requieren pedirlas a Print24 (ver `docs/borrador_correo_print24.md`).
 - Si al abrir algo ves «did not find executable» o un error de Python, es un `.venv` copiado de otro PC:
-  ejecuta de nuevo `herramientas\preparar_pc_nuevo.cmd`.
+  ejecuta de nuevo `herramientas\Herramientas.cmd` → 5 (preparar).
 - Si falta `data\cache`, la recogida funciona igual pero empieza de cero.
