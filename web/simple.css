@@ -209,3 +209,8 @@ body{padding-top:12px}
 .margin-line em{font-style:normal;font-weight:700;color:var(--bad);flex-basis:100%}
 .hero-margin{flex-basis:100%;margin-top:2px!important;font-size:13px;color:#c8d3cd}
 .hero-margin strong{font-size:15px;color:var(--good)}.hero-margin.down strong{color:var(--bad)}
+
+/* Lo que no coincide con lo pedido: rojo neón */
+.neon{color:#ff6b6b;font-weight:800;text-shadow:0 0 6px rgba(255,60,60,.5)}
+.offer-what{display:block;-webkit-line-clamp:unset;overflow:visible;font-size:12px;line-height:1.45}
+.comparison-box td .neon{white-space:normal}

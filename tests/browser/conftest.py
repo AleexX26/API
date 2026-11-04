@@ -32,12 +32,13 @@ def _catalog(tmp_path):
     base = {"currency": "EUR", "tax": "net", "shipping": "included", "scope": "t"}
     for provider, slug, title, size, paper in (
         ("onlineprinters", "tarjetas-visita", "Tarjetas de visita", "85 x 55 mm", "350 g/m² papel estucado"),
+        ("onlineprinters", "tarjetas-premium", "Tarjetas de visita premium", "85 x 55 mm", "350 g/m² papel estucado"),
         ("onlineprinters", "flyers-a5", "Flyers A5", "A5", "135 g/m² papel estucado"),
         ("printai", "tarjetas-85x55", "Tarjetas de visita 85x55", "85 x 55 mm", "300 g/m² papel estucado"),
         ("laimprentadeinternet", "tarjetas", "Tarjetas de visita nuestra web", "85 x 55 mm", "350 g/m² papel estucado"),
     ):
         store.replace_offers(db, provider, f"https://example.test/{provider}/{slug}", title,
-                             [{**base, "quantity": 500, "kind": "total", "price": "40.00" if provider == "laimprentadeinternet" else "30.00"}, {**base, "quantity": 1000, "kind": "total", "price": "45.00"}],
+                             [{**base, "quantity": 500, "kind": "total", "price": "40.00" if provider == "laimprentadeinternet" else "20.00" if slug == "tarjetas-premium" else "30.00"}, {**base, "quantity": 1000, "kind": "total", "price": "45.00"}],
                              "2026-10-27", [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}, {"group": "Impresión", "label": "4+0 una cara"}])
     with db:  # our supplier cost: a profit at 500 uds and a loss at 1000
         db.executemany("INSERT INTO own_costs VALUES (?,?,?)", [("https://example.test/laimprentadeinternet/tarjetas", 500, "28.00"),

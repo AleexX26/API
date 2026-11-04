@@ -1,3 +1,4 @@
+import re
 from playwright.sync_api import expect
 from axe_playwright_python.sync_playwright import Axe
 
@@ -232,3 +233,22 @@ def test_el_beneficio_sobre_el_coste_sale_en_nuestra_tarjeta_y_avisa_si_hay_perd
     expect(page.locator(".offer.own .margin-line")).to_contain_text("Por debajo del coste")
     expect(page.locator(".offer.own .margin-line.down")).to_be_visible()
     assert page.locator(".offer.own .margin-line strong").evaluate("e => getComputedStyle(e).color") == "rgb(255, 138, 128)"
+
+
+def test_lo_que_pido_sale_principal_y_la_otra_tarjeta_en_ver_mas(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    onlineprinters = page.locator(".offer:not(.own)", has_text="Onlineprinters")
+    expect(onlineprinters).to_contain_text("30,00")  # las «Tarjetas de visita», no la premium que es más barata (20,00)
+    expect(onlineprinters).not_to_contain_text("20,00 €")
+    expect(onlineprinters.locator(".auto-more-products summary")).to_contain_text("Ver más (1)")
+
+
+def test_lo_que_no_coincide_con_lo_pedido_sale_en_rojo_neon(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    neon = page.locator(".offer:not(.own) .offer-what .neon")
+    expect(neon.first).to_contain_text("300 g")  # la ficha de Printai es de 300 g y se pidieron 350
+    expect(neon.first).to_have_css("color", "rgb(255, 107, 107)")
+    expect(neon.first).to_have_css("text-shadow", re.compile(r"rgba\(255, 60, 60"))
+    assert page.locator(".offer.own .offer-what .neon").count() == 0  # nuestra ficha es la estándar: nada en rojo

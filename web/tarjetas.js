@@ -90,8 +90,62 @@ function toolBrief() {
   const printing = s.inks === 'cmyk' ? (s.pages === '1 cara' ? '4+0 tintas (CMYK)' : s.pages === '2 caras' ? '4+4 tintas (CMYK)' : 'Sin especificar') : s.inks === 'special' ? 'Pantone' : 'Sin especificar';
   return {format: s.format || 'Sin especificar', material, printing, finishing: s.finishing || 'Sin especificar', extras};
 }
-function whatIs(item) {
-  return item.spec.filter(x => ['Formato', 'Papel', 'Impresión', 'Acabados', 'Realización'].includes(x.group) || /formato|papel|impres|acabado|realiz/i.test(x.group)).slice(0, 5).map(x => x.label).join(' · ') || item.spec.slice(0, 3).map(x => x.label).join(' · ');
+// ---- What was asked against what a page offers --------------------------------------------------------------
+const plain = text => String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const BASIC_WORDS = new Set(['clasica', 'estandar', 'basica', 'normal', 'standard']);  // "Tarjetas de visita clásicas" is the plain card
+const STOP_WORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'con', 'para', 'y', 'e', 'en', 'a', 'un', 'una', 'por']);
+const stem = word => word.replace(/(es|s)$/, '');
+const currentQuery = () => cardsTool.mode === 'generic' ? generic.query : 'tarjetas de visita';
+// Words of the product name that are not in the search: "Tarjetas de visita con textura" has one more than "tarjetas de visita"
+function titleExtras(item) {
+  const asked = new Set(plain(currentQuery()).split(/[^a-z0-9]+/).filter(Boolean).map(stem));
+  return plain(String(item.title).split(' · ')[0]).split(/[^a-z0-9]+/).filter(w => w.length > 1 && !/\d/.test(w))
+    .map(stem).filter(w => !STOP_WORDS.has(w) && !asked.has(w) && !BASIC_WORDS.has(w)).length;
+}
+const dimsOf = text => {
+  const m = plain(text).match(/(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(cm|mm)?/);
+  if (!m) return null;
+  const k = m[3] === 'cm' ? 10 : 1;
+  return [parseFloat(m[1].replace(',', '.')) * k, parseFloat(m[2].replace(',', '.')) * k];
+};
+const sidesOf = text => /4\s*\+\s*4|2 caras|dos caras|ambas/.test(plain(text)) ? 2 : /4\s*\+\s*0|1 cara|una cara/.test(plain(text)) ? 1 : null;
+const familyOf = text => { const t = plain(text); return /estucado|cuche|couche/.test(t) ? 'estucado' : /offset/.test(t) ? 'offset' : /reciclad|kraft|ecolog/.test(t) ? 'reciclado' : /carton|cartulina/.test(t) ? 'carton' : null; };
+// true when this part of a page's description is NOT what was asked (shown in neon red)
+function differs(part, state) {
+  const label = plain(part.label), group = plain(part.group);
+  if (cardsTool.mode === 'generic') {
+    const wanted = Object.entries(generic.filters).find(([name]) => plain(name) === group);
+    return !!wanted && wanted[1] !== '' && !label.includes(plain(wanted[1]));
+  }
+  if (/formato/.test(group)) {
+    const want = dimsOf(state.format), have = dimsOf(part.label);
+    return !!want && !!have && !((Math.abs(want[0] - have[0]) < 1.5 && Math.abs(want[1] - have[1]) < 1.5) || (Math.abs(want[0] - have[1]) < 1.5 && Math.abs(want[1] - have[0]) < 1.5));
+  }
+  if (/papel/.test(group)) {
+    const grams = (label.match(/(\d{2,4})\s*g/) || [])[1], askedGrams = (plain(state.grams).match(/\d+/) || [])[0];
+    if (grams && askedGrams && grams !== askedGrams) return true;
+    const family = familyOf(part.label), askedFamily = familyOf(state.paper_type);
+    if (family && askedFamily && family !== askedFamily) return true;
+    const surface = plain(state.surface);
+    return !!surface && (surface === 'mate' ? /brillo|brillante/ : /mate/).test(label) && !label.includes(surface);
+  }
+  if (/impres/.test(group)) {
+    const want = state.pages ? (/2/.test(state.pages) ? 2 : 1) : null, have = sidesOf(part.label);
+    return !!want && !!have && want !== have;
+  }
+  if (/acabado/.test(group)) {
+    const asked = plain(state.finishing), has = /plastific|barniz|laminad|relieve|soft|uvi/.test(label);
+    if (!asked) return false;
+    return asked === 'sin' ? has : !label.includes(asked.split(' ')[0]);
+  }
+  return false;
+}
+// The description of a page, with the parts that differ from the request in neon red
+function whatHtml(item) {
+  const wanted = item.spec.filter(x => ['Formato', 'Papel', 'Impresión', 'Acabados', 'Realización'].includes(x.group) || /formato|papel|impres|acabado|realiz/i.test(x.group)).slice(0, 5);
+  const parts = wanted.length ? wanted : item.spec.slice(0, 3);
+  const state = cardsTool.state;
+  return parts.map(x => differs(x, state) ? `<span class="neon" title="No es lo que pides: otra opción">${esc(x.label)}</span>` : esc(x.label)).join(' · ');
 }
 function offerTotal(item) {return item.at ? withIva(Number(item.at.total), item.tax_status) : null;}  // with VAT: what the offers are ranked by
 const netOf = (value, tax) => tax === 'gross' ? Number(value) / IVA : Number(value);  // without VAT: what is shown first
@@ -100,6 +154,8 @@ function offerRank(item) {
   const total = offerTotal(item);
   return [item.near ? 1 : 0, total === null ? 1 : 0, total ?? 0];
 }
+// Inside one provider: first the product that is what was asked (its name has no extra words), then the nearest, then the cheapest
+function byRelevance(a, b) {return titleExtras(a) - titleExtras(b) || byRank(a, b);}
 function byRank(a, b) {
   const x = offerRank(a), y = offerRank(b);
   return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
@@ -126,7 +182,7 @@ function priceBlock(item, qty) {
 function otherRow(item, qty) {
   const total = offerTotal(item);
   const price = total === null ? 'sin precio' : item.tax_status === 'unknown' ? euro(total) : `${euro(netTotal(item))} sin IVA<div class="auto-note">${euro(total)} con IVA</div>`;
-  return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${price}</td><td>${esc(whatIs(item))}</td></tr>`;
+  return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${price}</td><td>${whatHtml(item)}</td></tr>`;
 }
 // Our price against each rival's (both without VAT): more than them = profit margin (green), less = red.
 // Our margin on this order: net sale price minus the supplier cost at this exact quantity (the Excel's "pvp proveedor").
@@ -176,7 +232,7 @@ function offerCard(group, best, qty, badges, groups = []) {
  <div class="offer-price">${diffSide(group, groups)}<div>${priceBlock(best, qty)}</div></div>
  ${p.own ? marginHtml(best, qty) : ''}
  <div class="offer-meta">${chips(best, qty)}</div>
- <p class="offer-what">${esc(whatIs(best))}</p>
+ <p class="offer-what">${whatHtml(best)}</p>
  ${best.near ? `<p class="offer-near">Precio de la ficha por defecto: ${esc(best.near)}. Quizá en su web se pueda pedir lo tuyo a otro precio.</p>` : ''}
  <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
@@ -207,7 +263,7 @@ function renderResults(items, qty, links = []) {
     byProvider.get(item.provider).push(item);
   }
   const groups = [...byProvider].map(([id, list]) => {
-    list.sort(byRank);
+    list.sort(byRelevance);
     return {provider: providers.find(p => p.id === id) || {id, name: id, initials: id.slice(0, 2).toUpperCase()}, items: list, best: list[0]};
   }).sort((a, b) => (a.provider.own ? 1 : 0) - (b.provider.own ? 1 : 0) || byRank(a.best, b.best));  // our web goes last
   groups.forEach(g => g.links = links.filter(l => l.provider === g.provider.id));
