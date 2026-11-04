@@ -160,6 +160,7 @@ function byRank(a, b) {
   const x = offerRank(a), y = offerRank(b);
   return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
 }
+const MAX_COLUMNS = 4;  // providers in a row
 const STALE_DAYS = 30;
 const ageDays = item => Math.max(0, Math.floor((Date.now() - new Date(item.observed_at).getTime()) / 864e5));
 // A line above the results when some provider's prices are old: they are read by hand, so they age
@@ -286,6 +287,8 @@ function renderResults(allItems, qty, allLinks = []) {
   const ownGroup = groups.find(g => g.provider.own), rivals = groups.filter(g => !g.provider.own);
   // Our web goes first, above the green box of the cheapest; the other providers go below, from cheapest to dearest
   $('tool-best').innerHTML = (ownGroup ? card(ownGroup) : '') + bestBanner(groups, qty) + staleNotice(groups);
+  // Columns: as many as providers up to 4 in a row, and the rows are balanced (5 = 3 + 2, 7 = 4 + 3); the cards fill the width
+  $('tool-results').className = 'tool-results cols-' + (rivals.length ? Math.ceil(rivals.length / Math.ceil(rivals.length / MAX_COLUMNS)) : 1);
   $('tool-results').innerHTML = rivals.length ? rivals.map(card).join('')
     : groups.length ? '<div class="empty-box"><p class="auto-note">Ningún otro proveedor tiene esto con lo que has elegido.</p></div>' 
     : `<div class="empty-box"><p><strong>${cardsTool.mode === 'generic' ? 'No hay nada recogido con ese nombre y esas opciones.' : 'Ninguna ficha recogida tiene todo esto.'}</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos${cardsTool.mode === 'generic' ? ' o con otra palabra' : ' (por ejemplo el gramaje o el acabado), o vuelve a lo estándar'}.</p></div>`;

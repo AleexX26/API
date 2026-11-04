@@ -286,3 +286,12 @@ dialog .primary{background:var(--accent);color:#fff;border:1px solid var(--accen
 .step-actions{grid-column:3;justify-self:end;align-self:start}
 @media(max-width:1300px){.tool-more{grid-column:1/-1}.step-actions{grid-column:1/-1}}
 #tool-results{min-height:130px}
+
+/* Los proveedores ocupan todo el ancho: hasta 4 por fila, repartidos por igual (con 3 ocupan 1/3 cada uno, con 5 son 3 + 2, con 8 son 4 + 4) */
+@media(min-width:1000px){
+#tool-results{display:flex;flex-wrap:wrap;overflow-x:hidden;overflow-y:auto;align-content:flex-start}
+#tool-results .offer{flex:1 1 calc(25% - 9px);min-width:0;max-width:none}
+#tool-results.cols-1 .offer{flex-basis:100%}
+#tool-results.cols-2 .offer{flex-basis:calc(50% - 6px)}
+#tool-results.cols-3 .offer{flex-basis:calc(33.333% - 8px)}
+}

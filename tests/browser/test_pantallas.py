@@ -241,8 +241,9 @@ def test_lo_que_pido_sale_principal_y_la_otra_tarjeta_en_ver_mas(page):
     open_home(page)
     pressed(page, "quantity", "500").click()
     onlineprinters = page.locator(".offer:not(.own)", has_text="Onlineprinters")
-    expect(onlineprinters).to_contain_text("30,00")  # las «Tarjetas de visita», no la premium que es más barata (20,00)
-    expect(onlineprinters).not_to_contain_text("20,00 €")
+    precio = onlineprinters.locator(".offer-price .big")
+    expect(precio).to_contain_text("30,00")  # las «Tarjetas de visita», no la premium que es más barata (20,00)
+    expect(precio).not_to_contain_text("20,00")
     expect(onlineprinters.locator(".auto-more-products summary")).to_contain_text("Ver más (1)")
 
 
@@ -337,3 +338,24 @@ def test_el_panel_de_precios_anotados_tiene_su_boton_para_anotar(page):
     expect(page.locator("#manual-dialog")).to_be_visible()
     expect(page.locator("#manual-heading")).to_have_text("Anotar el precio que ves en la web")
     page.click("#close-manual")
+
+
+def test_los_proveedores_ocupan_todo_el_ancho_con_hasta_cuatro_por_fila(page):
+    if page.size != "escritorio":
+        return  # en móvil van uno debajo de otro
+    open_home(page)
+    # (proveedores, columnas esperadas): 3 ocupan un tercio cada uno, 5 son 3 + 2, 6 son 3 + 3
+    for rivals, columns in ((1, 1), (2, 2), (3, 3), (4, 4), (5, 3), (6, 3)):
+        page.evaluate("""n => {
+          const ids = providers.filter(p => !p.own).slice(0, n).map(p => p.id);
+          renderResults(ids.map(id => ({provider: id, title: 'Tarjetas de visita', url: 'https://example.test/' + id, spec: [], tax_status: 'net', shipping: 'included',
+            observed_at: new Date().toISOString(), at: {total: '10', estimated: false}, prices: [[100, '10', null, null]], costs: undefined})), 100);
+        }""", rivals)
+        page.wait_for_timeout(150)
+        boxes = [b for b in (c.bounding_box() for c in page.locator("#tool-results .offer").all()) if b]
+        area = page.locator("#tool-results").bounding_box()
+        first_row = [b for b in boxes if abs(b["y"] - boxes[0]["y"]) < 2]
+        assert len(boxes) == rivals and len(first_row) == columns, (rivals, len(first_row))
+        last_row = [b for b in boxes if abs(b["y"] - boxes[-1]["y"]) < 2]
+        for row in (first_row, last_row):  # every row fills the width of the area
+            assert abs(min(b["x"] for b in row) - area["x"]) < 2 and abs(max(b["x"] + b["width"] for b in row) - (area["x"] + area["width"])) < 3, (rivals, row)
