@@ -53,7 +53,9 @@ if errorlevel 1 (
 ) else (
   echo.
   echo === Print24: mas cantidades, hasta 1000 ===
-  "%PY%" -m app.collectors.print24_quantities
+  set "ALL="
+  set /p ALL=Cantidades de TODAS las fichas de Print24 (1-2 horas) o solo tarjetas de visita? [t=todas / Enter=solo tarjetas]:
+  if /i "%ALL%"=="t" ( "%PY%" -m app.collectors.print24_quantities --todas ) else ( "%PY%" -m app.collectors.print24_quantities )
   echo.
   echo === Nuestra web ^(unos 8 minutos^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log

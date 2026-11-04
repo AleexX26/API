@@ -198,3 +198,11 @@ def test_cada_proveedor_enseña_a_la_izquierda_la_diferencia_con_nuestra_web(pag
     caja = lado.bounding_box()["x"]
     precio = page.locator(".offer:not(.own) .offer-price .big").first.bounding_box()["x"]
     assert caja < precio, "la diferencia va a la izquierda del precio"
+
+
+def test_nuestra_web_tiene_otro_color_que_los_proveedores(page):
+    open_home(page)
+    fondo = lambda sel: page.locator(sel).first.evaluate("e => getComputedStyle(e).backgroundColor")
+    assert fondo(".offer.own") == "rgb(243, 239, 251)"
+    assert fondo(".offer:not(.own)") != fondo(".offer.own")
+    assert page.locator(".offer.own").first.evaluate("e => getComputedStyle(e).borderTopColor") == "rgb(107, 70, 193)"

@@ -145,6 +145,11 @@ if __name__ == "__main__":
     cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
     cli.add_argument("--max", type=int, default=1000, help="highest quantity to collect")
     cli.add_argument("--visible", action="store_true", help="show the browser window")
+    cli.add_argument("--todas", action="store_true", help="every Print24 page already collected (about 1-2 h), not only the business cards")
     cli.add_argument("url", nargs="*", default=[CARDS])
     args = cli.parse_args()
-    print(json.dumps(collect(args.db, args.url, maximum=args.max, headless=not args.visible), indent=1))
+    urls = args.url
+    if args.todas:
+        with sqlite3.connect(args.db) as conn:
+            urls = [r[0] for r in conn.execute("SELECT url FROM product_pages WHERE status='ok' ORDER BY url")]
+    print(json.dumps(collect(args.db, urls, maximum=args.max, headless=not args.visible), indent=1))
