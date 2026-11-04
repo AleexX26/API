@@ -13,12 +13,59 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.services import manual_prices
+from app.services import app_settings, manual_prices
 from app.services.cards import CARD_KEYS, CARD_TYPES, card_form
 from app.services.products import product_form
 from app.services.workbench import IDS, PROVIDERS, catalog_listing, general_links, init_db, save_quote, search, suggestions, valid_source
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+STANDARD_KEYS = {"quantity": int, "format": str, "pages": str, "grams": str, "paper_type": str, "surface": str, "finishing": str, "inks": str, "days": int}
+
+
+class ScreenSettings(BaseModel):
+    """What a person may change from the settings window; anything else is refused."""
+    model_config = ConfigDict(extra="forbid")
+    standard: dict[str, str | int] = Field(default_factory=dict, max_length=12)
+    quantities: list[int] = Field(default_factory=list, max_length=12)
+    hidden: dict[str, list[str]] = Field(default_factory=dict, max_length=40)  # product words -> providers not shown for it
+
+    @field_validator("standard")
+    @classmethod
+    def known_standard(cls, value):
+        clean = {}
+        for key, val in value.items():
+            if key not in STANDARD_KEYS:
+                raise ValueError("Ajuste desconocido")
+            if STANDARD_KEYS[key] is int:
+                if isinstance(val, bool) or not isinstance(val, int) or not 0 <= val <= 1000000:
+                    raise ValueError("Número no válido")
+            elif not isinstance(val, str) or len(val) > 100:
+                raise ValueError("Texto no válido")
+            clean[key] = val
+        return clean
+
+    @field_validator("quantities")
+    @classmethod
+    def sane_quantities(cls, value):
+        if any(q < 1 or q > 1000000 for q in value):
+            raise ValueError("Cantidad no válida")
+        return sorted(set(value))
+
+    @field_validator("hidden")
+    @classmethod
+    def known_hidden(cls, value):
+        clean = {}
+        for product, providers in value.items():
+            word = " ".join(product.lower().split())
+            if not 2 <= len(word) <= 80:
+                raise ValueError("Producto no válido")
+            if any(p not in IDS for p in providers):
+                raise ValueError("Proveedor desconocido")
+            if providers:
+                clean[word] = sorted(set(providers))
+        return clean
 
 
 class Brief(BaseModel):
@@ -171,6 +218,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
     seed = seed or ROOT / "data/catalog_links.json"
     init_db(database)
     manual_prices.init(database)
+    app_settings.init(database)
     names = {p["id"]: p["name"] for p in PROVIDERS}
 
     def manual_items():
@@ -188,7 +236,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
             same = ("http://127.0.0.1:8765", "http://localhost:8765") + ((f"http://{request.headers.get('host')}",) if lan else ())
             if origin and origin not in same:
                 return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
-            if lan and request.url.path.startswith(("/api/quotes", "/api/manual-prices")) and client not in LOOPBACK:
+            if lan and request.url.path.startswith(("/api/quotes", "/api/manual-prices", "/api/settings")) and client not in LOOPBACK:
                 return JSONResponse({"detail": "Solo lectura: los presupuestos se guardan desde el PC que aloja el comparador"}, status_code=403)
             if request.headers.get("content-type", "").split(";")[0] != "application/json":
                 return JSONResponse({"detail": "Se requiere JSON"}, status_code=415)
@@ -276,6 +324,14 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         payload = data.model_dump()
         payload["valid_until"] = data.valid_until.isoformat()
         return {"id": save_quote(database, payload)}
+
+    @app.get("/api/settings")
+    def settings_view():
+        return app_settings.load(database)
+
+    @app.post("/api/settings")
+    def settings_save(data: ScreenSettings):
+        return app_settings.save(database, data.model_dump())
 
     @app.get("/api/manual-prices")
     def manual_list():

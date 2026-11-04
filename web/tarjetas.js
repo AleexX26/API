@@ -262,7 +262,9 @@ function bestBanner(groups, qty) {
   const note = exact.length ? '' : '<p class="hero-note">Ninguna ficha coincide exactamente: son precios de configuraciones parecidas.</p>';
   return `<div class="best-banner"><p class="hero-label">Lo más barato para este pedido</p><div class="hero-main"><span class="hero-name">${esc(cheapest.g.provider.name)}</span><span class="hero-price">${euro(netTotal(cheapest.item))} <small>sin IVA</small></span></div><p class="hero-sub">${euro(offerTotal(cheapest.item))} con IVA · ${euro(netTotal(cheapest.item) / qty)}/ud sin IVA</p>${us}${margin}${note}</div>`;
 }
-function renderResults(items, qty, links = []) {
+function renderResults(allItems, qty, allLinks = []) {
+  const hidden = typeof hiddenProviders === 'function' ? hiddenProviders() : new Set();  // providers the person chose not to see for this product
+  const items = allItems.filter(i => !hidden.has(i.provider)), links = allLinks.filter(l => !hidden.has(l.provider));
   cardsTool.items = items;
   const byProvider = new Map();
   for (const item of items) {
@@ -279,9 +281,13 @@ function renderResults(items, qty, links = []) {
     const ownLinks = links.filter(l => l.provider === own.id);
     if (ownLinks.length) groups.push({provider: own, items: [], best: null, links: ownLinks});
   }
-  $('tool-best').innerHTML = bestBanner(groups, qty) + staleNotice(groups);
   const cheapestId = groups.find(g => hasPrice(g))?.provider.id;
-  $('tool-results').innerHTML = groups.length ? groups.map(g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best.near ? ['best'] : [], groups)).join('')
+  const card = g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best?.near ? ['best'] : [], groups);
+  const ownGroup = groups.find(g => g.provider.own), rivals = groups.filter(g => !g.provider.own);
+  // Our web goes first, above the green box of the cheapest; the other providers go below, from cheapest to dearest
+  $('tool-best').innerHTML = (ownGroup ? card(ownGroup) : '') + bestBanner(groups, qty) + staleNotice(groups);
+  $('tool-results').innerHTML = rivals.length ? rivals.map(card).join('')
+    : groups.length ? '<div class="empty-box"><p class="auto-note">Ningún otro proveedor tiene esto con lo que has elegido.</p></div>' 
     : `<div class="empty-box"><p><strong>${cardsTool.mode === 'generic' ? 'No hay nada recogido con ese nombre y esas opciones.' : 'Ninguna ficha recogida tiene todo esto.'}</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos${cardsTool.mode === 'generic' ? ' o con otra palabra' : ' (por ejemplo el gramaje o el acabado), o vuelve a lo estándar'}.</p></div>`;
 }
 cardsTool.search = async function () {

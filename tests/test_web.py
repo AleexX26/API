@@ -696,3 +696,29 @@ def test_several_quantities_can_be_typed_in_at_once(tmp_path):
         card = client.get("/api/catalog", params={"q": "tarjetas de visita", "quantity": 1000, "cards": json.dumps(BASIC_CARD)}).json()
         manual = [i for i in card["items"] if i.get("manual")]
         assert len(manual) == 1 and manual[0]["tiers"] == 3 and manual[0]["at"]["total"] == "48.50"
+
+
+def test_screen_settings_are_saved_validated_and_survive(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    path = tmp_path / "work.sqlite3"
+    with TestClient(create_app(path, seed)) as client:
+        assert client.get("/api/settings").json() == {"standard": {}, "quantities": [], "hidden": {}}
+        saved = client.post("/api/settings", json={"standard": {"quantity": 500, "format": "90 x 50 mm", "pages": "2 caras"},
+                                                    "quantities": [1000, 250, 250], "hidden": {"  Tarjetas  de visita ": ["tuskamisetas", "tuskamisetas"], "flyers": []}})
+        assert saved.status_code == 200
+        assert saved.json() == {"standard": {"quantity": 500, "format": "90 x 50 mm", "pages": "2 caras"}, "quantities": [250, 1000],
+                                "hidden": {"tarjetas de visita": ["tuskamisetas"]}}  # sorted, no repeats, no empty rules
+    with TestClient(create_app(path, seed)) as again:  # a new start keeps them
+        assert again.get("/api/settings").json()["standard"]["quantity"] == 500
+        for bad in ({"standard": {"colour": "red"}}, {"standard": {"quantity": -1}}, {"quantities": [0]}, {"hidden": {"flyers": ["nadie"]}}, {"hidden": {"a": []}}, {"extra": 1}):
+            assert again.post("/api/settings", json=bad).status_code == 422, bad
+        assert again.get("/api/settings").json()["standard"]["quantity"] == 500  # a refused save changes nothing
+
+
+def test_only_the_host_pc_can_change_the_screen_settings(tmp_path):
+    seed = tmp_path / "links.json"
+    seed.write_text(json.dumps({"providers": {}}))
+    with TestClient(create_app(tmp_path / "work.sqlite3", seed, lan=True), client=("192.168.1.20", 5000), base_url="http://192.168.1.10:8765") as other:
+        assert other.get("/api/settings").status_code == 200
+        assert other.post("/api/settings", json={"quantities": [100]}, headers={"origin": "http://192.168.1.10:8765"}).status_code == 403

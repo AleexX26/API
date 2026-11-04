@@ -80,7 +80,8 @@ async function init(){
   try{
     providers=(await api('/api/providers')).providers;
     visible=providers.filter(p=>p.products>0);if(!visible.length)visible=providers;
-    initFinder();initManual();
+    if(window.loadSettings)await loadSettings();  // what the buttons start on, before the first search
+    initFinder();initManual();if(window.initSettings)initSettings();
     if(window.initCardsTool)initCardsTool();
   }catch(e){$('tool-results').innerHTML=`<p class="auto-note warn">No se ha podido cargar el comparador: ${esc(e.message)}</p>`;}
 }

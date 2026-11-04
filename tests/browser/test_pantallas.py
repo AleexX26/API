@@ -188,12 +188,14 @@ def test_anotar_varias_cantidades_de_golpe(page):
             page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})
 
 
-def test_nuestra_web_sale_la_ultima_con_la_diferencia_en_color(page):
+def test_nuestra_web_sale_arriba_encima_del_cuadro_verde_con_la_diferencia_en_color(page):
     open_home(page)
     pressed(page, "quantity", "500").click()
     expect(page.locator(".offer.own .diff-box, .offer.own .diff-side")).to_have_count(0)  # nuestra tarjeta no lleva recuadro de diferencias
     nombres = page.locator(".offer .offer-head strong").all_inner_texts()
-    assert nombres[-1] != nombres[0] and page.locator(".offer").last.get_attribute("class").find("own") >= 0
+    assert nombres[0] == "La Imprenta de Internet"  # nuestra web va arriba, encima del cuadro verde, y los demás debajo
+    assert page.locator("#tool-best > .offer.own").bounding_box()["y"] < page.locator(".best-banner").bounding_box()["y"]
+    assert page.locator("#tool-results .offer.own").count() == 0
     expect(page.locator(".offer:not(.own) .diff-side .diff.up").first).to_contain_text("+")  # 40 sin IVA frente a 30: cobramos mas, en verde
     color = page.locator(".offer:not(.own) .diff-side .diff.up").first.evaluate("e => getComputedStyle(e).color")
     assert color == "rgb(74, 222, 128)"
@@ -271,3 +273,40 @@ def test_cada_lectura_dice_su_edad_y_se_avisa_de_las_antiguas(page):
     aviso = page.locator(".stale-note")
     expect(aviso).to_contain_text("Printai (40 días)")
     expect(aviso).not_to_contain_text("Onlineprinters")
+
+
+def test_la_configuracion_cambia_lo_estandar_los_botones_y_oculta_un_proveedor(page):
+    open_home(page)
+    try:
+        page.click("#settings-open")
+        expect(page.locator("#settings-dialog")).to_be_visible()
+        page.fill("#set-quantity", "500")
+        page.fill("#settings-quantities", "50, 500, 5000")
+        page.fill("#settings-product", "tarjetas de visita")
+        page.locator('#settings-providers input[value="printai"]').check()
+        page.click("#settings-add-rule")
+        expect(page.locator("#settings-rules")).to_contain_text("no sale Printai")
+        page.click("#settings-save")
+        expect(page.locator("#settings-dialog")).to_be_hidden()
+        expect(pressed(page, "quantity", "500")).to_have_attribute("aria-pressed", "true")  # 500 es ahora lo estándar
+        expect(page.locator('.pill[data-key="quantity"]')).to_have_count(3)  # y los botones son 50, 500 y 5000
+        expect(page.locator(".offer:not(.own)", has_text="Onlineprinters").first).to_be_visible()
+        expect(page.locator(".offer:not(.own)", has_text="Printai")).to_have_count(0)  # Printai no sale en las tarjetas
+        page.reload()
+        expect(pressed(page, "quantity", "500")).to_have_attribute("aria-pressed", "true")  # se queda guardado
+        expect(page.locator(".offer:not(.own)", has_text="Printai")).to_have_count(0)
+        page.click("#settings-open")
+        page.once("dialog", lambda d: d.accept())
+        page.locator("#settings-rules .rule-remove").click()  # quitar la regla y guardar: vuelve a salir
+        page.click("#settings-save")
+        expect(page.locator(".offer:not(.own)", has_text="Printai").first).to_be_visible()
+    finally:  # la base del servidor de pruebas se comparte entre casos
+        page.request.post(f"{page.base}/api/settings", data={"standard": {}, "quantities": [], "hidden": {}})
+
+
+def test_la_configuracion_no_rompe_la_pantalla_unica(page):
+    open_home(page)
+    expect(page.locator("#settings-open")).to_be_visible()
+    if page.size == "escritorio":
+        alto = page.evaluate("[document.documentElement.scrollHeight, innerHeight]")
+        assert alto[0] <= alto[1]
