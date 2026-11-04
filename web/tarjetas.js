@@ -242,8 +242,27 @@ function offerCard(group, best, qty, badges, groups = []) {
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${whatHtml(best)}</p>
  ${best.near ? `<p class="offer-near">Precio de la ficha por defecto: ${esc(best.near)}. Quizá en su web se pueda pedir lo tuyo a otro precio.</p>` : ''}
- <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a><button type="button" class="outline tool-manual" data-index="${index}">✎ ${best.near ? 'Anotar el precio real' : 'Anotar precio'}</button>${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
+ <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${p.own && offerTotal(best) !== null && best.tax_status !== 'unknown' ? `<button type="button" class="outline tool-copy" data-index="${index}">📋 Copiar para el cliente</button>` : ''}<button type="button" class="outline tool-manual" data-index="${index}">✎ ${best.near ? 'Anotar el precio real' : 'Anotar precio'}</button>${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
+}
+// Text ready to paste in the customer's email: OUR sale price only (never supplier names or costs)
+function customerText(item, qty) {
+  const parts = item.spec.filter(x => /formato|papel|impres|acabado|realiz/i.test(x.group)).slice(0, 5).map(x => x.label);
+  const tier = (item.prices || []).find(x => Number(x[0]) === qty) || (item.prices || [])[0];
+  const net = netTotal(item), total = offerTotal(item), plainTitle = String(item.title).split(' · ')[0];
+  const lines = [plainTitle, parts.length ? 'Características: ' + parts.join(', ') : '', `Cantidad: ${qty.toLocaleString('es-ES')} uds`,
+    `Precio: ${euro(net)} sin IVA (${euro(total)} con IVA 21 %) · ${euro(net / qty)}/ud sin IVA`,
+    item.shipping === 'included' ? 'Envío incluido' : '', tier && tier[2] != null ? `Entrega aproximada: ${tier[2]} días` : ''];
+  return lines.filter(Boolean).join('\n');
+}
+async function copyText(text) {
+  try {await navigator.clipboard.writeText(text); return true;} catch {}
+  const area = document.createElement('textarea');  // fallback when the page is not a secure context
+  area.value = text; area.className = 'sr-only'; document.body.appendChild(area); area.select();
+  let ok = false;
+  try {ok = document.execCommand('copy');} catch {}
+  area.remove();
+  return ok;
 }
 function bestBanner(groups, qty) {
   const priced = groups.map(g => ({g, item: g.best})).filter(x => x.item && offerTotal(x.item) !== null && x.item.tax_status !== 'unknown');
@@ -405,7 +424,11 @@ window.initCardsTool = async function () {
   });
   // The cards of the providers are in #tool-results, ours (on top) is in #tool-best
   for (const box of [$('tool-results'), $('tool-best')]) box.addEventListener('click', event => {
-    const button = event.target.closest('.tool-manual'), link = event.target.closest('.tool-manual-link');
+    const button = event.target.closest('.tool-manual'), link = event.target.closest('.tool-manual-link'), copy = event.target.closest('.tool-copy');
+    if (copy) {
+      const item = cardsTool.items[Number(copy.dataset.index)], qty = cardsTool.mode === 'generic' ? (generic.quantity || 100) : (Number(cardsTool.state.quantity) || STANDARD.quantity);
+      copyText(customerText(item, qty)).then(ok => toast(ok ? 'Copiado: pégalo en el email del cliente' : 'No se pudo copiar'));
+    }
     if (button) openManual(cardsTool.items[Number(button.dataset.index)], manualFillFor());
     if (link) openManual({provider: link.dataset.provider, url: link.dataset.url, title: link.dataset.title}, manualFillFor());
     if (event.target.closest('.tool-edit-manual')) {

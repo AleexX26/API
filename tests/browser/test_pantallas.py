@@ -359,3 +359,18 @@ def test_los_proveedores_ocupan_todo_el_ancho_con_hasta_cuatro_por_fila(page):
         last_row = [b for b in boxes if abs(b["y"] - boxes[-1]["y"]) < 2]
         for row in (first_row, last_row):  # every row fills the width of the area
             assert abs(min(b["x"] for b in row) - area["x"]) < 2 and abs(max(b["x"] + b["width"] for b in row) - (area["x"] + area["width"])) < 3, (rivals, row)
+
+
+def test_copiar_para_el_cliente_solo_lleva_nuestro_precio(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    page.evaluate("window.copiado = ''; Object.defineProperty(navigator, 'clipboard', {value: {writeText: async t => { window.copiado = t; }}, configurable: true})")
+    boton = page.locator("#tool-best .offer.own .tool-copy")
+    expect(boton).to_be_visible()
+    assert page.locator(".tool-copy").count() == 1  # solo en nuestra tarjeta, nunca en la de un proveedor
+    boton.click()
+    expect(page.locator("#toast")).to_contain_text("Copiado")
+    texto = page.evaluate("window.copiado")
+    assert "Cantidad: 500 uds" in texto and "sin IVA" in texto and "con IVA 21 %" in texto
+    for prohibido in ("Print24", "Onlineprinters", "Printai", "Truyol", "Coste", "Beneficio", "proveedor"):
+        assert prohibido.lower() not in texto.lower(), prohibido

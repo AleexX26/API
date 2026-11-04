@@ -14,3 +14,6 @@ dist/
 .venv-browser/
 *.log
 *.zip
+
+data.tar
+*.tar
