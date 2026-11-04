@@ -338,8 +338,14 @@ def _read_items(catalog: Path) -> tuple[list[dict], dict]:
             specs = {r["url"]: json.loads(r["spec_json"]) for r in db.execute("SELECT * FROM product_specs")}
         except sqlite3.OperationalError:
             specs = {}
+        try:  # a Print24 page read option by option (print24_options) is shown by its configurations, not by its default one
+            with_options = {r[0].split("#", 1)[0] for r in db.execute("SELECT DISTINCT product_url FROM supplier_offers WHERE provider='print24'")}
+        except sqlite3.OperationalError:
+            with_options = set()
         try:
             for page in db.execute("SELECT * FROM product_pages WHERE status='ok' ORDER BY url"):
+                if page["url"] in with_options:
+                    continue
                 raw = [(r["q"], Decimal(r["t"]), r["d"]) for r in db.execute(
                     """SELECT qt.value AS q, p.total_net AS t, p.delivery_days AS d FROM prices p JOIN quantities qt ON qt.id=p.quantity_id
                        WHERE p.configuration_id=?""", (page["configuration_id"],))]

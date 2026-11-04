@@ -52,6 +52,9 @@ set "ALL=%errorlevel%"
 echo.
 choice /c TCN /n /m "Truyol: [T] tarjetas y flyers, unos 40 minutos  [C] todo su catalogo, varias horas  [N] no recoger Truyol: "
 set "TRU=%errorlevel%"
+echo.
+choice /c SN /n /m "Print24: [S] precios exactos de las tarjetas por gramaje, caras y acabado, 1-2 horas  [N] no: "
+set "P24OPT=%errorlevel%"
 "%PY%" -c "import playwright" 2>nul
 if errorlevel 1 (
   echo.
@@ -61,6 +64,11 @@ if errorlevel 1 (
   echo.
   echo === Print24: mas cantidades, hasta 1000 ===
   if "%ALL%"=="1" ( "%PY%" -m app.collectors.print24_quantities --todas ) else ( "%PY%" -m app.collectors.print24_quantities )
+  echo.
+  if "%P24OPT%"=="1" (
+    echo === Print24: tarjetas por gramaje, caras y acabado ===
+    "%PY%" -m app.collectors.print24_options
+  )
   echo.
   echo === Nuestra web ^(unos 8 minutos^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log
