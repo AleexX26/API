@@ -111,7 +111,7 @@ dialog label{color:var(--txt)}
 /* Más compacto para que quepa todo sin bajar */
 #finder{padding:7px 20px}
 #cards-tool{gap:8px;padding:8px 20px 44px}
-#cards-tool>.results-heading>div{display:flex;align-items:baseline;gap:14px;min-width:0}
+#cards-tool>.results-heading>div:first-child{display:flex;align-items:baseline;gap:14px;min-width:0}
 #cards-tool>.results-heading h2{margin:0}#tool-summary{margin:0}
 .tool-steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 22px;padding:8px 14px}
 .step{flex-direction:row;align-items:center;gap:10px}
@@ -154,7 +154,7 @@ body{padding-top:12px}
 /* Precios anotados y estado de los datos: botones en la fila del título; abren hacia abajo a todo el ancho */
 #cards-tool>.results-heading{flex-wrap:wrap;gap:8px 12px;align-items:center}
 #cards-tool>.results-heading>div:first-child{flex:1 1 400px;min-width:0}
-.extras{display:contents}
+.heading-tools{display:contents}
 #manual-box,#data-status{position:static;margin:0;font-size:13px;color:var(--txt);flex:0 0 auto}
 #manual-box>summary,#data-status summary{display:inline-block;background:#273041;border:1px solid #4a5870;border-radius:10px;padding:7px 14px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;list-style:none}
 #manual-box>summary:hover,#data-status summary:hover{background:#2f3a4f;border-color:#7aa7ff}
@@ -187,3 +187,14 @@ body{padding-top:12px}
 .offer-head{padding-right:96px}
 @media(max-width:1000px){#cards-tool>.results-heading>div:first-child{flex:1 1 100%}}
 @media(max-width:1000px){#manual-box,#data-status{flex:1 1 40%;min-width:0}#manual-box>summary,#data-status summary{display:block;text-align:center}#data-status{margin:0!important}}
+/* Botones «Precios anotados a mano» y «Estado de los datos»: iguales, alineados y claros */
+#cards-tool>.results-heading{min-height:36px}
+#manual-box,#data-status,#data-status details{margin:0!important}
+#manual-box>summary,#data-status summary{display:flex;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;width:210px;height:36px;padding:0 14px;background:rgba(79,140,255,.14);border:1px solid #4f8cff;border-radius:10px;font-size:13px;font-weight:700;color:#bcd2ff;text-align:center;box-shadow:none}
+#manual-box>summary:hover,#data-status summary:hover{background:rgba(79,140,255,.26);border-color:#8db3ff;color:#fff}
+#manual-box[open]>summary,#data-status details[open]>summary{background:#2f6bdc;border-color:#2f6bdc;color:#fff}
+#manual-box,#data-status{flex:0 0 210px}
+#manual-box[open],#data-status:has(details[open]){flex:0 0 100%}
+@media(max-width:1000px){#manual-box>summary,#data-status summary{width:100%}#manual-box,#data-status{flex:1 1 40%}}
+#manual-box>summary,#data-status summary{display:block;line-height:34px;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cards-tool>.results-heading,#cards-tool>.tool-steps,#cards-tool>#tool-best{flex-shrink:0}
