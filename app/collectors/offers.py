@@ -47,11 +47,12 @@ def replace_offers(db: sqlite3.Connection, provider: str, url: str, name: str, r
              for r in rows])
 
 
-def replace_group(db: sqlite3.Connection, provider: str, url_like: str, items: list[dict], observed_at: str) -> None:
+def replace_group(db: sqlite3.Connection, provider: str, url_like: "str | list[str]", items: list[dict], observed_at: str) -> None:
     """Delete every page of the provider matching the LIKE pattern and store `items` instead, all in ONE transaction:
     if anything fails the old prices stay."""
     with db:
-        db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (provider, url_like))
+        for pattern in ([url_like] if isinstance(url_like, str) else url_like):
+            db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (provider, pattern))
         for item in items:
             spec_json = json.dumps(item.get("spec") or [], ensure_ascii=False)
             db.executemany(

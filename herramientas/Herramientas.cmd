@@ -60,6 +60,9 @@ if errorlevel 1 (
   echo.
   echo === Nuestra web ^(unos 8 minutos^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log
+  echo.
+  echo === Truyol: tarjetas de visita ^(unos 3 minutos^) ===
+  "%PY%" -m app.collectors.truyol 2>> data\registros\truyol.log
 )
 echo.
 set "BG="

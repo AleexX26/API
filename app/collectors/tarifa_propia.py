@@ -125,6 +125,35 @@ SHEETS = {"BOLSAS papel": "Bolsas de papel", "CARTAS RESTAURANTE": "Cartas de re
           "CALENDARIOS BOLSILLO": "Calendarios de bolsillo", "calendarios mesa wire-o": "Calendarios de mesa wire-o", "Adhesivos": "Adhesivos"}
 PRICE_COLUMNS = {"icon": "PVP ICON en todas las hojas", "web": "PRECIO LA IMPRENTA DE INTERNET donde la hoja lo trae y PVP ICON en las demás"}
 SHOP_SEARCH = f"{shop.SITE}/?s=%s&post_type=product"
+OTHERS_MARK = "#tarifa-otros-"  # the products of the other sheets; the business cards use TARIFF_MARK
+# Address of each sheet's product on the shop (from https://laimprentadeinternet.com/product-sitemap.xml): the first
+# is the default; a block title or measure that contains the keyword picks a more specific page.
+SHOP_PAGES = {
+    "BOLSAS papel": [("", "bolsas-de-papel-personalizadas")],
+    "CARTAS RESTAURANTE": [("", "carta-encuadernada"), ("triptico", "carta-triptico"), ("tríptico", "carta-triptico"), ("totem", "carta-totem-alto")],
+    "MANTELES INDIVIDUALES": [("", "manteles")],
+    "POSAVASOS": [("", "posavasos")],
+    "BOLIGRAFOS": [("", "boligrafos-merchandising"), ("aluminio", "boligrafos-aluminio-personalizados")],
+    "CAJAS": [("", "cajas-de-carton"), ("grande", "cajas-de-carton-grandes")],
+    "talonarios": [("", "talonarios-autocopiativos")],
+    "CARPETAS": [("", "imprimir-carpetas-personalizadas")],
+    "CALENDARIOS BOLSILLO": [("", "calendarios-de-bolsillo")],
+    "calendarios mesa wire-o": [("", "impresion-de-calendarios-de-mesa")],
+    "Adhesivos": [("", "pegatinas"), ("rollo", "etiquetas-adhesivas-rollo")],
+}
+
+
+def shop_page(sheet: str, text: str, fallback: str) -> str:
+    """The shop's own page for a sheet's product (a keyword in the block text picks the specific one), or the search page."""
+    options = SHOP_PAGES.get(sheet)
+    if not options:
+        return fallback
+    text = text.lower()
+    chosen = options[0][1]
+    for keyword, slug_ in options[1:]:
+        if keyword in text:
+            chosen = slug_
+    return f"{shop.SITE}/{chosen}/"
 
 
 def number(text: str | None) -> Decimal | None:
@@ -222,7 +251,8 @@ def generic_products(sheet: str, blocks: list[dict]) -> list[dict]:
         spec = ([{"group": "Formato", "label": block["measure"]}] if block["measure"] else []) + ([{"group": "Modelo", "label": block["label"]}] if block["label"] else [])
         rows = [{"quantity": q, "kind": "total", "price": amount, "currency": "EUR", "tax": "net", "shipping": "unknown",
                  "scope": "tarifa propia (Excel); precio sin IVA", "delivery_days": None} for q, amount in sorted(block["prices"].items())]
-        found.append({"url": f"{SHOP_SEARCH % query}{TARIFF_MARK}{shop.slug(name + ' ' + label)}", "name": f"{name} · {label}" if label else name,
+        page_url = shop_page(sheet, f"{block['label']} {block['measure']}", SHOP_SEARCH % query)
+        found.append({"url": f"{page_url}{OTHERS_MARK}{shop.slug(name + ' ' + label)}", "name": f"{name} · {label}" if label else name,
                       "rows": rows, "spec": spec, "sheet": sheet})
     return found
 
@@ -250,7 +280,7 @@ def load_rest(db_path: Path, excel: Path, price: str = "web", now: datetime | No
         raise ValueError("Ninguna hoja tiene precios; no cambio nada. " + "; ".join(f"{s}: {r['notes'][0]}" for s, r in report.items() if r["notes"])[:400])
     db = offers.connect(db_path)
     try:
-        offers.replace_group(db, shop.PROVIDER, f"{shop.SITE}/?s=%{TARIFF_MARK}%", items, stamp)
+        offers.replace_group(db, shop.PROVIDER, [f"{shop.SITE}/%{OTHERS_MARK}%", f"{shop.SITE}/?s=%{TARIFF_MARK}%"], items, stamp)  # also the older search-page addresses
     finally:
         db.close()
     return report
