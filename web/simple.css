@@ -8,7 +8,7 @@ body{background:var(--bg);color:var(--txt);font:14px/1.45 'Segoe UI',system-ui,A
 ::selection{background:var(--sun);color:#111}
 :focus-visible{outline:2px solid #7aa7ff;outline-offset:2px}
 a{color:#7aa7ff}
-.sidebar,main>header,.eyebrow,footer,#finder>.results-heading,#finder-note,#cat-chips,#cat-recent,#other-tools,#catalog{display:none!important}
+.sidebar,main>header,.eyebrow,footer,#finder>.results-heading,#finder-note,#cat-recent,#other-tools,#catalog{display:none!important}
 main{margin:0;padding:0;max-width:none;display:flex;flex-direction:column}
 
 /* Barra superior */
@@ -137,3 +137,11 @@ dialog label{color:var(--txt)}
 #cards-tool>.results-heading{padding:0;margin:0}
 #cards-tool .results-heading p{margin:0}
 .tool-steps{padding:6px 14px}
+/* Botones de productos bajo el buscador (tarjetas de visita, bolsas, flyers…) en una sola fila */
+#finder #cat-chips{grid-column:2;grid-row:2;display:flex;flex-wrap:nowrap;gap:6px;margin:0;overflow-x:auto;padding-bottom:2px}
+#finder #cat-chips>*{flex:0 0 auto;border:1px solid var(--line);background:var(--surf2);color:var(--txt);border-radius:8px;padding:3px 11px;font-size:12.5px;font-weight:600;min-height:28px}
+#finder #cat-chips>*:hover{border-color:#5b6778}
+#finder #cat-chips .chip-main{background:var(--accent);border-color:var(--accent);color:#fff}
+#finder #cat-chips span{color:var(--muted);font-weight:600;background:transparent;border:0;padding:3px 2px}
+@media(max-width:1000px){#finder #cat-chips{grid-column:1;grid-row:auto}}
+#finder #cat-chips{scrollbar-width:thin}
