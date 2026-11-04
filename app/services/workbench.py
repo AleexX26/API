@@ -368,6 +368,12 @@ def _read_items(catalog: Path) -> tuple[list[dict], dict]:
         except sqlite3.OperationalError:
             pass
         try:
+            own_costs: dict[str, dict] = {}
+            for cost_url, cost_qty, cost in db.execute("SELECT product_url, quantity, cost FROM own_costs"):
+                own_costs.setdefault(cost_url, {})[str(cost_qty)] = cost
+        except sqlite3.OperationalError:
+            own_costs = {}
+        try:
             groups: dict[tuple, list] = {}
             for r in db.execute("SELECT * FROM supplier_offers ORDER BY provider, product_name, group_label, variant, quantity"):
                 groups.setdefault((r["provider"], r["product_url"], r["group_label"], r["variant"]), []).append(r)
@@ -381,7 +387,7 @@ def _read_items(catalog: Path) -> tuple[list[dict], dict]:
                               "scope": rows[0]["scope"], "comparable": "sin personalizar" not in normalize(rows[0]["scope"] or ""), "from_price": best["price"], "from_quantity": best["quantity"],
                               "min_quantity": min(r["quantity"] for r in rows), "max_quantity": max(r["quantity"] for r in rows),
                               "tiers": len(rows), "variants": 0, "observed_at": rows[0]["observed_at"], "prices": [[r["quantity"], r["price"], spec_days(json.loads(rows[0]["spec_json"])), spec_days(json.loads(rows[0]["spec_json"]))] for r in rows],
-                              "spec": json.loads(rows[0]["spec_json"])})
+                              "spec": json.loads(rows[0]["spec_json"]), **({"costs": own_costs[url]} if prov == "laimprentadeinternet" and url in own_costs else {})})
         except sqlite3.OperationalError:
             pass
     finally:

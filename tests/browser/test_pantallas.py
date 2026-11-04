@@ -73,9 +73,7 @@ def test_no_salen_proveedores_sin_productos(page):
     open_home(page)
     resultados = page.locator("#tool-results").inner_text()
     assert "Truyol" not in resultados and "Stricker" not in resultados
-    toggles = page.locator("#provider-toggles").text_content()
-    assert "Truyol" not in toggles and "Stricker" not in toggles
-    assert "Onlineprinters" in toggles
+    assert "Onlineprinters" in resultados
 
 
 def test_pantalla_sencilla_sin_menu_lateral_y_con_el_buscador_a_la_vista(page):
@@ -220,3 +218,17 @@ def test_nuestra_web_tiene_otro_color_que_los_proveedores(page):
     assert fondo(".offer.own") == "rgb(31, 26, 51)"
     assert fondo(".offer:not(.own)") != fondo(".offer.own")
     assert page.locator(".offer.own").first.evaluate("e => getComputedStyle(e).borderTopColor") == "rgb(182, 156, 255)"
+
+
+def test_el_beneficio_sobre_el_coste_sale_en_nuestra_tarjeta_y_avisa_si_hay_perdida(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    linea = page.locator(".offer.own .margin-line")
+    expect(linea).to_contain_text("Coste 28,00")
+    expect(linea).to_contain_text("+12,00")  # 40 sin IVA menos 28 de coste
+    expect(page.locator(".best-banner .hero-margin")).to_contain_text("+12,00")
+    assert page.locator(".offer.own .margin-line strong").evaluate("e => getComputedStyle(e).color") == "rgb(74, 222, 128)"
+    pressed(page, "quantity", "1000").click()  # 45 de venta frente a 50 de coste
+    expect(page.locator(".offer.own .margin-line")).to_contain_text("Por debajo del coste")
+    expect(page.locator(".offer.own .margin-line.down")).to_be_visible()
+    assert page.locator(".offer.own .margin-line strong").evaluate("e => getComputedStyle(e).color") == "rgb(255, 138, 128)"

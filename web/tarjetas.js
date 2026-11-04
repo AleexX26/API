@@ -129,6 +129,21 @@ function otherRow(item, qty) {
   return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${price}</td><td>${esc(whatIs(item))}</td></tr>`;
 }
 // Our price against each rival's (both without VAT): more than them = profit margin (green), less = red.
+// Our margin on this order: net sale price minus the supplier cost at this exact quantity (the Excel's "pvp proveedor").
+function marginOf(item, qty) {
+  if (!item || !item.costs || item.tax_status !== 'net' || !item.at || item.at.estimated || offerTotal(item) === null) return null;
+  const cost = Number(item.costs[String(qty)]), sale = netTotal(item);
+  if (!cost || !sale) return null;
+  const profit = sale - cost;
+  return {cost, profit, pct: profit / sale * 100, kind: profit < -0.005 ? 'down' : 'up'};
+}
+const signed = n => (n > 0.005 ? '+' : n < -0.005 ? '−' : '') + euro(Math.abs(n));
+const percent = n => Math.abs(n).toFixed(1).replace('.', ',') + ' %';
+function marginHtml(item, qty) {
+  const m = marginOf(item, qty);
+  if (!m) return '';
+  return `<div class="margin-line ${m.kind}"><span>Coste ${euro(m.cost)}</span><strong>Beneficio ${signed(m.profit)} (${m.profit < 0 ? '−' : ''}${percent(m.pct)})</strong>${m.kind === 'down' ? '<em>Por debajo del coste</em>' : ''}</div>`;
+}
 function diffOf(mineGroup, theirGroup) {
   const mine = netTotal(mineGroup.best), theirs = netTotal(theirGroup.best), diff = mine - theirs;
   const kind = Math.abs(diff) < 0.005 ? 'same' : diff > 0 ? 'up' : 'down', sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
@@ -159,6 +174,7 @@ function offerCard(group, best, qty, badges, groups = []) {
   const classes = ['offer', badges.includes('best') ? 'best' : '', p.own ? 'own' : '', best.near ? 'near' : ''].filter(Boolean).join(' ');
   return `<article class="${classes}"><div class="offer-head"><span class="monogram">${esc(p.initials)}</span><div><strong>${esc(p.name)}</strong>${p.own ? ' <span class="tag own">Nuestra web</span>' : ''}${badges.includes('best') ? ' <span class="tag best">Más barato</span>' : ''}</div></div>
  <div class="offer-price">${diffSide(group, groups)}<div>${priceBlock(best, qty)}</div></div>
+ ${p.own ? marginHtml(best, qty) : ''}
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${esc(whatIs(best))}</p>
  ${best.near ? `<p class="offer-near">Precio de la ficha por defecto: ${esc(best.near)}. Quizá en su web se pueda pedir lo tuyo a otro precio.</p>` : ''}
@@ -178,8 +194,10 @@ function bestBanner(groups, qty) {
     const words = d.kind === 'same' ? 'Cobramos lo mismo que' : d.kind === 'up' ? 'Cobramos más que' : 'Cobramos menos que';
     us = `<p class="hero-us"><span>${words} ${esc(rival.g.provider.name)}, el proveedor más barato:</span> <strong class="diff ${d.kind}">${d.money}${d.percent ? ` (${d.percent})` : ''}</strong></p>`;
   }
+  const m = own ? marginOf(own.item, qty) : null;
+  const margin = m ? `<p class="hero-margin ${m.kind}">Nuestro beneficio sobre el coste del proveedor: <strong>${signed(m.profit)} (${m.profit < 0 ? '−' : ''}${percent(m.pct)})</strong>${m.kind === 'down' ? ' · por debajo del coste' : ''}</p>` : '';
   const note = exact.length ? '' : '<p class="hero-note">Ninguna ficha coincide exactamente: son precios de configuraciones parecidas.</p>';
-  return `<div class="best-banner"><p class="hero-label">Lo más barato para este pedido</p><div class="hero-main"><span class="hero-name">${esc(cheapest.g.provider.name)}</span><span class="hero-price">${euro(netTotal(cheapest.item))} <small>sin IVA</small></span></div><p class="hero-sub">${euro(offerTotal(cheapest.item))} con IVA · ${euro(netTotal(cheapest.item) / qty)}/ud sin IVA</p>${us}${note}</div>`;
+  return `<div class="best-banner"><p class="hero-label">Lo más barato para este pedido</p><div class="hero-main"><span class="hero-name">${esc(cheapest.g.provider.name)}</span><span class="hero-price">${euro(netTotal(cheapest.item))} <small>sin IVA</small></span></div><p class="hero-sub">${euro(offerTotal(cheapest.item))} con IVA · ${euro(netTotal(cheapest.item) / qty)}/ud sin IVA</p>${us}${margin}${note}</div>`;
 }
 function renderResults(items, qty, links = []) {
   cardsTool.items = items;

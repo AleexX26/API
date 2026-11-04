@@ -98,7 +98,8 @@ def products(blocks: list[dict]) -> list[dict]:
             rows = [{"quantity": q, "kind": "total", "price": sale + surcharge, "currency": "EUR", "tax": "net", "shipping": "included",
                      "scope": SCOPE, "delivery_days": days} for q, (_, sale) in sorted(block["prices"].items())]
             label = " · ".join(names)
-            found.append({"url": f"{shop.PAGES[0]}{TARIFF_MARK}{shop.slug(label)}", "name": f"Tarjetas de Visita · {label}", "rows": rows, "spec": spec})
+            costs = {q: cost for q, (cost, _) in block["prices"].items() if cost is not None and not surcharge}  # the express cost is not in the sheet
+            found.append({"url": f"{shop.PAGES[0]}{TARIFF_MARK}{shop.slug(label)}", "name": f"Tarjetas de Visita · {label}", "rows": rows, "spec": spec, "costs": costs})
     return found
 
 
@@ -206,6 +207,7 @@ def parse_tables(rows: list[dict[str, str]], price: str = "icon") -> tuple[list[
                 icon = pick(lambda v: v.startswith("pvp icon") and "unitario" not in v)
                 wanted = icon if price == "icon" else pick(lambda v: "imprenta" in v) or icon  # a table without our web column keeps the tariff price
                 groups.append({"qty": start, "label": label_col, "measure": pick(lambda v: v.startswith("medidas")), "end": end,
+                               "cost": pick(lambda v: v.startswith("pvp proveedor")), "icon": icon,
                                "web": pick(lambda v: "imprenta" in v), "price": wanted, "title": tidy(before.get(label_col) or before.get(start) or ""), "number": number_ + 1})
             continue
         for column, text in cells.items():  # a sub-header between the header row and the data: "pvp la imprenta"
@@ -221,24 +223,39 @@ def parse_tables(rows: list[dict[str, str]], price: str = "icon") -> tuple[list[
             if separate and cells.get(group["label"]):
                 group["title"] = tidy(cells[group["label"]])
             amount = number(cells.get(group["price"])) if group["price"] else None
+            icon_amount = number(cells.get(group["icon"])) if group.get("icon") else None  # kept as the fallback of a table whose web column is empty
             quantity = number(qty_text)
             if quantity is None:
                 if qty_text and not separate and amount is None:
                     group["title"] = tidy(qty_text)
                 continue
-            if amount is None or amount <= 0:
+            has_web = amount is not None and amount > 0
+            if not has_web and not (icon_amount is not None and icon_amount > 0 and price == "web"):
                 continue
             measure = (cells.get(group["measure"]) or "").strip() if group["measure"] else ""
             key = (group["title"], measure)
-            block = found.setdefault(key, {"label": group["title"], "measure": measure, "prices": {}, "group": group["number"]})
+            block = found.setdefault(key, {"label": group["title"], "measure": measure, "prices": {}, "costs": {}, "icon_prices": {}, "group": group["number"]})
+            if not has_web:
+                block["icon_prices"].setdefault(int(quantity), icon_amount)
+                cost = number(cells.get(group["cost"])) if group["cost"] else None
+                if cost is not None and cost > 0:
+                    block["costs"].setdefault(int(quantity), cost)
+                continue
             old = block["prices"].get(int(quantity))
             if old is not None and old != amount and block["group"] != group["number"]:
                 notes.append(f"{group['title'] or 'sin título'} {measure} {int(quantity)} uds: dos tablas dan {old} y {amount}; me quedo con {old}")
             elif old is None:
                 block["prices"][int(quantity)] = amount
+                cost = number(cells.get(group["cost"])) if group["cost"] else None
+                if cost is not None and cost > 0:
+                    block["costs"][int(quantity)] = cost
     if header is None:
         raise ValueError("No encuentro una fila de títulos con «UNIDADES»")
-    return list(found.values()), notes
+    for block in found.values():  # a table with no price of our web written at all keeps the sheet's tariff price
+        if not block["prices"] and block["icon_prices"]:
+            block["prices"] = block["icon_prices"]
+        block.pop("icon_prices")
+    return [b for b in found.values() if b["prices"]], notes
 
 
 def generic_products(sheet: str, blocks: list[dict]) -> list[dict]:
@@ -253,7 +270,7 @@ def generic_products(sheet: str, blocks: list[dict]) -> list[dict]:
                  "scope": "tarifa propia (Excel); precio sin IVA", "delivery_days": None} for q, amount in sorted(block["prices"].items())]
         page_url = shop_page(sheet, f"{block['label']} {block['measure']}", SHOP_SEARCH % query)
         found.append({"url": f"{page_url}{OTHERS_MARK}{shop.slug(name + ' ' + label)}", "name": f"{name} · {label}" if label else name,
-                      "rows": rows, "spec": spec, "sheet": sheet})
+                      "rows": rows, "spec": spec, "sheet": sheet, "costs": dict(block.get("costs", {}))})
     return found
 
 

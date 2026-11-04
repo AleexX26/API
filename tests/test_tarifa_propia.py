@@ -193,3 +193,41 @@ def test_a_wrong_excel_does_not_wipe_the_loaded_products(tmp_path):
     with pytest.raises(ValueError):
         tariff.load_rest(db, wrong)
     assert count() == before > 0
+
+
+def test_supplier_costs_are_stored_for_the_standard_delivery_only_and_replaced_on_reload(tmp_path):
+    book, db = tmp_path / "t.xlsx", tmp_path / "c.sqlite3"
+    make_book(book, {"TARJETAS DE VISITA": ROWS, "BOLSAS papel": BAGS, "MANTELES INDIVIDUALES": TABLECLOTHS})
+    tariff.load(db, book)
+    tariff.load_rest(db, book)
+    rows = dict(((u.rsplit("#", 1)[1], q), c) for u, q, c in sqlite3.connect(db).execute("SELECT product_url, quantity, cost FROM own_costs"))
+    assert rows[("tarifa-1-cara-sin-acabado-7-10-dias", 100)] == "10" and rows[("tarifa-1-cara-sin-acabado-7-10-dias", 250)] == "10.5"
+    assert not any("2-3-dias" in key for key, _ in rows)  # the express cost is not in the sheet
+    assert any("manteles" in key and q == 1000 and c == "90" for (key, q), c in rows.items())  # other sheets too
+    before = len(rows)
+    tariff.load(db, book)
+    tariff.load_rest(db, book)
+    assert sqlite3.connect(db).execute("SELECT count(*) FROM own_costs").fetchone()[0] == before  # replaced, not duplicated
+
+
+def test_the_catalog_items_of_our_web_carry_their_costs(tmp_path):
+    from app.services.workbench import _read_items
+    book, db = tmp_path / "t.xlsx", tmp_path / "c.sqlite3"
+    make_book(book, {"TARJETAS DE VISITA": ROWS})
+    tariff.load(db, book)
+    items, _ = _read_items(db)
+    standard = next(i for i in items if i["url"].endswith("#tarifa-1-cara-sin-acabado-7-10-dias"))
+    express = next(i for i in items if i["url"].endswith("#tarifa-1-cara-sin-acabado-2-3-dias"))
+    assert standard["costs"] == {"100": "10", "250": "10.5"} and "costs" not in express
+
+
+def test_a_table_whose_web_column_is_empty_keeps_the_tariff_price(tmp_path):
+    coasters = [["UNIDADES", "MEDIDAS", "PVP PROVEEDOR", "PVP ICON", "PVP UNITARIO ICON", "PRECIO LA IMPRENTA DE INTERNET"],
+                ["REDONDO"],
+                [100, "10,3X10,3", 88.84, 139, 1.39], [250, "10,3X10,3", 99.96, 175, 0.7]]
+    book = tmp_path / "t.xlsx"
+    make_book(book, {"POSAVASOS": coasters})
+    blocks, _ = tariff.parse_tables(tariff.read_sheet(book, "POSAVASOS"), "web")
+    assert [b["prices"] for b in blocks] == [{100: Decimal("139"), 250: Decimal("175")}]
+    assert blocks[0]["costs"] == {100: Decimal("88.84"), 250: Decimal("99.96")}
+    assert "icon_prices" not in blocks[0]

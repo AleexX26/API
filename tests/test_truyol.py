@@ -41,6 +41,14 @@ def test_describe_and_products_one_per_delivery_time():
     assert first["url"].startswith("https://truyol.com/es/x#") and first["name"].startswith("Tarjetas · ")
 
 
+def test_catalog_urls_keep_only_product_pages_of_the_sitemap():
+    xml = ("<urlset>" + "".join(f"<url><loc>{u}</loc></url>" for u in (
+        "https://truyol.com/", "https://truyol.com/es/material-publicitario", "https://truyol.com/es/material-publicitario/flyers",
+        "https://truyol.com/es/material-publicitario/flyers", "https://truyol.com/es/guias/etiquetas", "https://truyol.com/blog/algo",
+        "https://truyol.com/es/pliegos/pliego-mate")) + "</urlset>")
+    assert t.catalog_urls(xml) == ["https://truyol.com/es/material-publicitario/flyers", "https://truyol.com/es/pliegos/pliego-mate"]
+
+
 def test_the_collector_refuses_a_forbidden_route(tmp_path):
     import pytest
     from app.collectors.index_homepages import navigation_allowed

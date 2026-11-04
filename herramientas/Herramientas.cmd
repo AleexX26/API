@@ -49,6 +49,9 @@ echo === Print24: fichas nuevas ===
 echo.
 choice /c TS /n /m "Cantidades de Print24: [T] todas las fichas, 1-2 horas  [S] solo tarjetas de visita: "
 set "ALL=%errorlevel%"
+echo.
+choice /c TCN /n /m "Truyol: [T] tarjetas y flyers, unos 40 minutos  [C] todo su catalogo, varias horas  [N] no recoger Truyol: "
+set "TRU=%errorlevel%"
 "%PY%" -c "import playwright" 2>nul
 if errorlevel 1 (
   echo.
@@ -62,8 +65,9 @@ if errorlevel 1 (
   echo === Nuestra web ^(unos 8 minutos^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log
   echo.
-  echo === Truyol: tarjetas de visita ^(unos 3 minutos^) ===
-  "%PY%" -m app.collectors.truyol 2>> data\registros\truyol.log
+  echo === Truyol ===
+  if "%TRU%"=="1" ( "%PY%" -m app.collectors.truyol --grupo todos 2>> data\registros\truyol.log )
+  if "%TRU%"=="2" ( "%PY%" -m app.collectors.truyol --grupo catalogo 2>> data\registros\truyol.log )
 )
 echo.
 set "BG="

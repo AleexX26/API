@@ -8,7 +8,6 @@ body{background:var(--bg);color:var(--txt);font:14px/1.45 'Segoe UI',system-ui,A
 ::selection{background:var(--sun);color:#111}
 :focus-visible{outline:2px solid #7aa7ff;outline-offset:2px}
 a{color:#7aa7ff}
-.sidebar,main>header,.eyebrow,footer,#finder>.results-heading,#finder-note,#cat-recent,#other-tools,#catalog{display:none!important}
 main{margin:0;padding:0;max-width:none;display:flex;flex-direction:column}
 
 /* Barra superior */
@@ -202,3 +201,11 @@ body{padding-top:12px}
 /* El aviso amarillo de «configuración parecida» se lee entero */
 .offer-near{display:block;-webkit-line-clamp:unset;overflow:visible;font-size:12px;line-height:1.4;padding:8px 10px;flex-shrink:0}
 .offer>*{flex-shrink:0}
+
+/* Beneficio sobre el coste del proveedor (solo en nuestra tarjeta y en la banda de arriba) */
+.margin-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:6px 10px;border-radius:10px;background:var(--good-bg);font-size:12px;color:#c8d3cd}
+.margin-line strong{font-size:14px;color:var(--good)}
+.margin-line.down{background:var(--bad-bg)}.margin-line.down strong{color:var(--bad)}
+.margin-line em{font-style:normal;font-weight:700;color:var(--bad);flex-basis:100%}
+.hero-margin{flex-basis:100%;margin-top:2px!important;font-size:13px;color:#c8d3cd}
+.hero-margin strong{font-size:15px;color:var(--good)}.hero-margin.down strong{color:var(--bad)}

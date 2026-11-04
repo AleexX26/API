@@ -35,6 +35,18 @@ GROUPS = {
     "flyers": [f"{BASE}/flyers"],
 }
 CARDS = GROUPS["tarjetas"][0]
+NOT_PRODUCTS = {"guias", "trabaja-con-nosotros", "bosque-truyol", "tipos-papel-imprenta-guia"}  # sections of /es/ that are not product pages
+
+
+def catalog_urls(sitemap_xml: str) -> list[str]:
+    """Every product page of Truyol's sitemap: /es/<category>/<product> (a category page or a guide is not one)."""
+    found = []
+    for url in re.findall(r"<loc>([^<]+)</loc>", sitemap_xml):
+        parts = url.removeprefix(SITE).strip("/").split("/")
+        if len(parts) == 3 and parts[0] == "es" and parts[1] not in NOT_PRODUCTS and url not in found:
+            found.append(url)
+    return found
+
 PRICE_ROUTE = "formulario/precio"
 PAUSE = 5
 MAX_CONFIGS = 120  # configurations per page; a page with more is cut and the summary says so
@@ -237,10 +249,17 @@ if __name__ == "__main__":
     import argparse
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
-    cli.add_argument("--grupo", choices=("tarjetas", "flyers", "todos"), default="tarjetas", help="qué fichas recoger")
+    cli.add_argument("--grupo", choices=("tarjetas", "flyers", "todos", "catalogo"), default="tarjetas",
+                     help="qué fichas recoger; «catalogo» = todas las de su sitemap (horas)")
     cli.add_argument("--max-configs", type=int, default=MAX_CONFIGS, help="combinaciones máximas por ficha")
     cli.add_argument("--visible", action="store_true", help="show the browser window")
     cli.add_argument("url", nargs="*", help="fichas concretas (sustituyen a --grupo)")
     args = cli.parse_args()
-    chosen = args.url or (GROUPS["tarjetas"] + GROUPS["flyers"] if args.grupo == "todos" else GROUPS[args.grupo])
+    if args.url:
+        chosen = args.url
+    elif args.grupo == "catalogo":
+        xml, _ = sitemaps.fetch_cached(f"{SITE}/sitemap.xml", ROOT / "data/cache/truyol/sitemap.xml", datetime.now(timezone.utc), {}, expected="text")
+        chosen = catalog_urls(xml.decode("utf-8", "replace"))
+    else:
+        chosen = GROUPS["tarjetas"] + GROUPS["flyers"] if args.grupo == "todos" else GROUPS[args.grupo]
     print(json.dumps(collect(args.db, ROOT / "data/cache/truyol", chosen, headless=not args.visible, max_configs=args.max_configs), indent=1, ensure_ascii=False))

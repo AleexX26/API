@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS supplier_offers (
   delivery_days INTEGER, spec_json TEXT NOT NULL, observed_at TEXT NOT NULL,
   PRIMARY KEY (provider, product_url, group_label, variant, quantity));
 CREATE INDEX IF NOT EXISTS idx_supplier_offers_provider ON supplier_offers(provider, product_name);
+CREATE TABLE IF NOT EXISTS own_costs (
+  product_url TEXT NOT NULL, quantity INTEGER NOT NULL, cost TEXT NOT NULL, PRIMARY KEY (product_url, quantity));
 CREATE TABLE IF NOT EXISTS supplier_pages (
   provider TEXT NOT NULL, url TEXT NOT NULL, fetched_at TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('ok','failed')),
   tiers INTEGER, error TEXT, PRIMARY KEY (provider, url));
@@ -53,7 +55,9 @@ def replace_group(db: sqlite3.Connection, provider: str, url_like: "str | list[s
     with db:
         for pattern in ([url_like] if isinstance(url_like, str) else url_like):
             db.execute("DELETE FROM supplier_offers WHERE provider=? AND product_url LIKE ?", (provider, pattern))
+            db.execute("DELETE FROM own_costs WHERE product_url LIKE ?", (pattern,))  # our supplier cost of what is replaced
         for item in items:
+            db.executemany("INSERT OR REPLACE INTO own_costs VALUES (?,?,?)", [(item["url"], q, str(c)) for q, c in sorted((item.get("costs") or {}).items())])
             spec_json = json.dumps(item.get("spec") or [], ensure_ascii=False)
             db.executemany(
                 "INSERT INTO supplier_offers VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
