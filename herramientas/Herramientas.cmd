@@ -45,6 +45,9 @@ if not exist "data\registros" mkdir "data\registros"
 echo === Print24: fichas nuevas ===
 "%PY%" -m app.collectors.products >> data\registros\print24.json 2>> data\registros\print24.log
 "%PY%" -m app.collectors.specs
+echo.
+choice /c TS /n /m "Cantidades de Print24: [T] todas las fichas, 1-2 horas  [S] solo tarjetas de visita: "
+set "ALL=%errorlevel%"
 "%PY%" -c "import playwright" 2>nul
 if errorlevel 1 (
   echo.
@@ -53,16 +56,14 @@ if errorlevel 1 (
 ) else (
   echo.
   echo === Print24: mas cantidades, hasta 1000 ===
-  set "ALL="
-  set /p ALL=Cantidades de TODAS las fichas de Print24 (1-2 horas) o solo tarjetas de visita? [t=todas / Enter=solo tarjetas]:
-  if /i "%ALL%"=="t" ( "%PY%" -m app.collectors.print24_quantities --todas ) else ( "%PY%" -m app.collectors.print24_quantities )
+  if "%ALL%"=="1" ( "%PY%" -m app.collectors.print24_quantities --todas ) else ( "%PY%" -m app.collectors.print24_quantities )
   echo.
   echo === Nuestra web ^(unos 8 minutos^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log
 )
 echo.
 set "BG="
-set /p BG=Lanzar tambien Onlineprinters y Printai en segundo plano (unas 3 horas)? [s/N]:
+set /p BG=Lanzar tambien Onlineprinters y Printai en segundo plano [unas 3 horas]? [s/N]:
 if /i "%BG%"=="s" (
   start "recogida-onlineprinters" /min cmd /c "%PY% -m app.collectors.onlineprinters >> data\registros\onlineprinters.json 2>> data\registros\onlineprinters.log"
   start "recogida-printai" /min cmd /c "%PY% -m app.collectors.printai --sitemap >> data\registros\printai.json 2>> data\registros\printai.log"
@@ -76,7 +77,7 @@ exit /b 0
 rem Carga los precios de venta de nuestra web desde el Excel de tarifas (todas las hojas). Sustituye los anteriores.
 call :entorno || exit /b 1
 set "EXCEL=%~1"
-if "%EXCEL%"=="" set /p EXCEL=Ruta del Excel de tarifas (puedes arrastrar el archivo aqui):
+if "%EXCEL%"=="" set /p EXCEL=Ruta del Excel de tarifas [puedes arrastrar el archivo aqui]:
 set "EXCEL=%EXCEL:"=%"
 "%PY%" -m app.collectors.tarifa_propia "%EXCEL%"
 echo.
