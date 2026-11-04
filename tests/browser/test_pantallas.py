@@ -48,8 +48,8 @@ def test_los_botones_cambian_el_precio(page):
 def test_gramaje_distinto_sale_como_parecida_y_cualquiera_lo_quita(page):
     open_home(page)
     pressed(page, "quantity", "500").click()
-    onlineprinters = page.locator(".offer", has_text="Onlineprinters")
-    printai = page.locator(".offer", has_text="Printai")
+    onlineprinters = page.locator(".offer:not(.own)", has_text="Onlineprinters")
+    printai = page.locator(".offer:not(.own)", has_text="Printai")
     expect(onlineprinters).to_be_visible()
     expect(printai).to_contain_text("300 g (pediste 350 g)")  # su ficha es de 300 g
     pressed(page, "grams", "").click()
@@ -91,7 +91,7 @@ def test_menu_visible_tras_scroll(page):
 
 def test_anotar_un_precio_a_mano_y_borrarlo(page):
     open_home(page)
-    printai = page.locator(".offer", has_text="Printai")
+    printai = page.locator(".offer:not(.own)", has_text="Printai")
     expect(printai).to_contain_text("pediste")
     try:
         printai.get_by_text("Anotar el precio real").click()
@@ -99,8 +99,8 @@ def test_anotar_un_precio_a_mano_y_borrarlo(page):
         page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
         page.fill("#m-price", "16,63")
         page.click("#manual-save")
-        expect(page.locator(".offer", has_text="Printai")).to_contain_text("Anotado a mano")
-        expect(page.locator(".offer", has_text="Printai")).not_to_contain_text("pediste")
+        expect(page.locator(".offer:not(.own)", has_text="Printai")).to_contain_text("Anotado a mano")
+        expect(page.locator(".offer:not(.own)", has_text="Printai")).not_to_contain_text("pediste")
         expect(page.locator("#manual-count")).to_have_text("1")
         page.once("dialog", lambda d: d.accept())
         page.locator("#manual-box summary").click()
@@ -137,7 +137,7 @@ def test_el_buscador_da_la_misma_pantalla_para_cualquier_producto(page):
 
 def test_editar_un_precio_anotado_sin_duplicarlo(page):
     open_home(page)
-    printai = page.locator(".offer", has_text="Printai")
+    printai = page.locator(".offer:not(.own)", has_text="Printai")
     try:
         printai.get_by_text("Anotar el precio real").click()
         page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
@@ -162,14 +162,27 @@ def test_anotar_varias_cantidades_de_golpe(page):
     lines = "['100 = 16,63', '1.000 = 48,50', '10.000: 300'].join(String.fromCharCode(10))"
     assert page.evaluate(f"parseMany({lines})") == [
         {"quantity": 100, "price": "16.63"}, {"quantity": 1000, "price": "48.50"}, {"quantity": 10000, "price": "300"}]
-    printai = page.locator(".offer", has_text="Printai")
+    printai = page.locator(".offer:not(.own)", has_text="Printai")
     try:
         printai.get_by_text("Anotar el precio real").click()
         page.fill("#m-url", "https://www.printai.es/tarjetas-de-visita/")
         page.fill("#m-many", "100 = 16,63\n1.000 = 48,50\n10.000 = 300")
         page.click("#manual-save")  # quantity and price boxes are not needed when the list is filled
         expect(page.locator("#manual-count")).to_have_text("3")
-        expect(page.locator(".offer", has_text="Printai")).to_contain_text("Anotado a mano")
+        expect(page.locator(".offer:not(.own)", has_text="Printai")).to_contain_text("Anotado a mano")
     finally:
         for row in page.request.get(f"{page.base}/api/manual-prices").json()["items"]:
             page.request.post(f"{page.base}/api/manual-prices/delete", data={"id": row["id"]})
+
+
+def test_nuestra_web_sale_la_ultima_con_la_diferencia_en_color(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    expect(page.locator(".offer.own .diff-box")).to_be_visible()
+    nombres = page.locator(".offer .offer-head strong").all_inner_texts()
+    assert nombres[-1] != nombres[0] and page.locator(".offer").last.get_attribute("class").find("own") >= 0
+    expect(page.locator(".offer.own .diff.up").first).to_contain_text("+")  # 40 sin IVA frente a 30: cobramos mas, en verde
+    color = page.locator(".offer.own .diff.up").first.evaluate("e => getComputedStyle(e).color")
+    assert color == "rgb(20, 108, 46)"
+    pressed(page, "quantity", "1000").click()
+    expect(page.locator(".offer.own .diff.same").first).to_contain_text("igual")

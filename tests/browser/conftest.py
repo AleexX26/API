@@ -34,9 +34,10 @@ def _catalog(tmp_path):
         ("onlineprinters", "tarjetas-visita", "Tarjetas de visita", "85 x 55 mm", "350 g/m² papel estucado"),
         ("onlineprinters", "flyers-a5", "Flyers A5", "A5", "135 g/m² papel estucado"),
         ("printai", "tarjetas-85x55", "Tarjetas de visita 85x55", "85 x 55 mm", "300 g/m² papel estucado"),
+        ("laimprentadeinternet", "tarjetas", "Tarjetas de visita nuestra web", "85 x 55 mm", "350 g/m² papel estucado"),
     ):
         store.replace_offers(db, provider, f"https://example.test/{provider}/{slug}", title,
-                             [{**base, "quantity": 500, "kind": "total", "price": "30.00"}, {**base, "quantity": 1000, "kind": "total", "price": "45.00"}],
+                             [{**base, "quantity": 500, "kind": "total", "price": "40.00" if provider == "laimprentadeinternet" else "30.00"}, {**base, "quantity": 1000, "kind": "total", "price": "45.00"}],
                              "2026-10-27", [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}, {"group": "Impresión", "label": "4+0 una cara"}])
     db.close()
     return cat

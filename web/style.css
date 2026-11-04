@@ -88,3 +88,5 @@ label select+input{margin-top:6px}
 .suggestions .chip-main{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600;font-size:12px;padding:5px 13px}
 .offer-price .tax{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
 .offer-price .with-iva{font-size:14px;color:var(--ink);margin-top:2px}
+
+.diff-box{margin:10px 0;padding:8px 10px;border:1px solid #c9d6ee;border-radius:8px;background:#fff}.diff-title{font-size:12px;font-weight:700;color:#274273;margin-bottom:4px}.diff-box ul{list-style:none;margin:0;padding:0}.diff-box li{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0}.diff.up{color:#146c2e}.diff.down{color:#b3261e}.diff.same{color:var(--muted)}

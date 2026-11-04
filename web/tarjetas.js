@@ -128,13 +128,26 @@ function otherRow(item, qty) {
   const price = total === null ? 'sin precio' : item.tax_status === 'unknown' ? euro(total) : `${euro(netTotal(item))} sin IVA<div class="auto-note">${euro(total)} con IVA</div>`;
   return `<tr><td><a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)} ↗</a>${item.near ? `<div class="auto-note warn">${esc(item.near)}</div>` : ''}</td><td>${price}</td><td>${esc(whatIs(item))}</td></tr>`;
 }
-function offerCard(group, best, qty, badges) {
+// Our price against each rival's (both without VAT): more than them = profit margin (green), less = red.
+function diffHtml(group, groups, qty) {
+  if (!group.provider.own || offerTotal(group.best) === null || group.best.tax_status === 'unknown') return '';
+  const mine = netTotal(group.best);
+  const rows = groups.filter(g => !g.provider.own && offerTotal(g.best) !== null && g.best.tax_status !== 'unknown').map(g => {
+    const theirs = netTotal(g.best), diff = mine - theirs, pct = theirs ? diff / theirs * 100 : 0;
+    const kind = Math.abs(diff) < 0.005 ? 'same' : diff > 0 ? 'up' : 'down', sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+    const text = kind === 'same' ? 'igual' : `${sign}${euro(Math.abs(diff))} (${sign}${Math.abs(pct).toFixed(1).replace('.', ',')} %)`;
+    return `<li><span>${esc(g.provider.name)} ${euro(theirs)}${g.best.near ? ' <small>(ficha parecida)</small>' : ''}</span><strong class="diff ${kind}">${text}</strong></li>`;
+  });
+  return rows.length ? `<div class="diff-box"><div class="diff-title">Diferencia con los demás (sin IVA)</div><ul>${rows.join('')}</ul><div class="auto-note">Verde: cobramos más que ellos (beneficio sobre su precio). Rojo: cobramos menos.</div></div>` : '';
+}
+function offerCard(group, best, qty, badges, groups = []) {
   const p = group.provider, index = cardsTool.items.indexOf(best), others = group.items.filter(i => i !== best);
   const classes = ['offer', badges.includes('best') ? 'best' : '', p.own ? 'own' : '', best.near ? 'near' : ''].filter(Boolean).join(' ');
   return `<article class="${classes}"><div class="offer-head"><span class="monogram">${esc(p.initials)}</span><div><strong>${esc(p.name)}</strong>${p.own ? ' <span class="tag own">Nuestra web</span>' : ''}${badges.includes('best') ? ' <span class="tag best">Más barato</span>' : ''}</div></div>
  <div class="offer-price">${priceBlock(best, qty)}</div>
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${esc(whatIs(best))}</p>
+ ${diffHtml(group, groups, qty)}
  ${best.near ? `<p class="offer-near">Es el precio de la configuración por defecto de la ficha: ${esc(best.near)}. En la web quizá se pueda pedir lo que quieres con otro precio.</p>` : ''}
  <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más de ${esc(p.name)} (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
@@ -162,11 +175,11 @@ function renderResults(items, qty, links = []) {
   const groups = [...byProvider].map(([id, list]) => {
     list.sort(byRank);
     return {provider: providers.find(p => p.id === id) || {id, name: id, initials: id.slice(0, 2).toUpperCase()}, items: list, best: list[0]};
-  }).sort((a, b) => byRank(a.best, b.best));
+  }).sort((a, b) => (a.provider.own ? 1 : 0) - (b.provider.own ? 1 : 0) || byRank(a.best, b.best));  // our web goes last
   $('tool-best').innerHTML = bestBanner(groups, qty);
   const cheapestId = groups.find(g => offerTotal(g.best) !== null && g.best.tax_status !== 'unknown')?.provider.id;
   groups.forEach(g => g.links = links.filter(l => l.provider === g.provider.id));
-  $('tool-results').innerHTML = groups.length ? groups.map(g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best.near ? ['best'] : [])).join('')
+  $('tool-results').innerHTML = groups.length ? groups.map(g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best.near ? ['best'] : [], groups)).join('')
     : `<div class="empty-box"><p><strong>${cardsTool.mode === 'generic' ? 'No hay nada recogido con ese nombre y esas opciones.' : 'Ninguna ficha recogida tiene todo esto.'}</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos${cardsTool.mode === 'generic' ? ' o con otra palabra' : ' (por ejemplo el gramaje o el acabado), o vuelve a lo estándar'}.</p></div>`;
 }
 cardsTool.search = async function () {
