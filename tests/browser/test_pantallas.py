@@ -252,3 +252,22 @@ def test_lo_que_no_coincide_con_lo_pedido_sale_en_rojo_neon(page):
     expect(neon.first).to_have_css("color", "rgb(255, 107, 107)")
     expect(neon.first).to_have_css("text-shadow", re.compile(r"rgba\(255, 60, 60"))
     assert page.locator(".offer.own .offer-what .neon").count() == 0  # nuestra ficha es la estándar: nada en rojo
+
+
+def test_lo_distinto_no_se_avisa_solo_con_el_color(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    neon = page.locator(".offer:not(.own) .offer-what .neon").first
+    expect(neon.locator(".sr-only")).to_have_text("Distinto de lo que pides: ")  # el lector de pantalla lo dice
+    page.wait_for_timeout(500)  # que acabe de pintarse la búsqueda
+    assert neon.evaluate("el => getComputedStyle(el, '::before').content") == '"≠ "'  # y se ve el símbolo
+
+
+def test_cada_lectura_dice_su_edad_y_se_avisa_de_las_antiguas(page):
+    open_home(page)
+    pressed(page, "quantity", "500").click()
+    expect(page.locator(".offer:not(.own)", has_text="Onlineprinters")).to_contain_text("Leído hoy")
+    expect(page.locator(".offer:not(.own)", has_text="Printai")).to_contain_text("Leído hace 40 días")
+    aviso = page.locator(".stale-note")
+    expect(aviso).to_contain_text("Printai (40 días)")
+    expect(aviso).not_to_contain_text("Onlineprinters")

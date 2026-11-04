@@ -87,4 +87,5 @@ async function init(){
 $('customer-go').addEventListener('click',readCustomer);
 $('data-status-details').addEventListener('toggle',()=>{if($('data-status-details').open&&!statusLoaded){statusLoaded=true;loadStatus();}});
 window.addEventListener('hashchange',()=>{if(location.hash==='#data-status')$('data-status-details').open=true;});
-init();
+// tarjetas.js is loaded after this file: start when every script has run (a slow answer of the server must not win the race)
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

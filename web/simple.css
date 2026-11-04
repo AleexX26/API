@@ -214,3 +214,21 @@ body{padding-top:12px}
 .neon{color:#ff6b6b;font-weight:800;text-shadow:0 0 6px rgba(255,60,60,.5)}
 .offer-what{display:block;-webkit-line-clamp:unset;overflow:visible;font-size:12px;line-height:1.45}
 .comparison-box td .neon{white-space:normal}
+
+/* Accesibilidad: lo distinto no se avisa solo con el color, y los textos pequeños son más grandes */
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.neon::before{content:"≠ ";font-weight:800}
+.stale-note{margin:8px 0 0!important;padding:8px 12px;border-radius:10px;background:#3b2f12;color:#fcd34d;font-size:13px}
+.stale-note strong{color:#ffe08a}
+.auto-note{font-size:12.5px}
+.step-label{font-size:13px}
+.pill,.pill-select,.pill-input{font-size:13.5px}
+.chip{font-size:12.5px}
+.tag{font-size:12px}
+.offer-what{font-size:13px}
+.offer-near{font-size:12.5px}
+.offer-price .tax,.offer-price .with-iva,.offer-price .per{font-size:13px}
+.diff-label{font-size:12px}.diff-side small{font-size:13px}
+.margin-line{font-size:13px}.margin-line strong{font-size:15px}
+.hero-sub{font-size:14px}.hero-margin{font-size:14px}
+#tool-summary{font-size:13px}

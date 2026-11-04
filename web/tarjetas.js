@@ -145,7 +145,7 @@ function whatHtml(item) {
   const wanted = item.spec.filter(x => ['Formato', 'Papel', 'Impresión', 'Acabados', 'Realización'].includes(x.group) || /formato|papel|impres|acabado|realiz/i.test(x.group)).slice(0, 5);
   const parts = wanted.length ? wanted : item.spec.slice(0, 3);
   const state = cardsTool.state;
-  return parts.map(x => differs(x, state) ? `<span class="neon" title="No es lo que pides: otra opción">${esc(x.label)}</span>` : esc(x.label)).join(' · ');
+  return parts.map(x => differs(x, state) ? `<span class="neon" title="No es lo que pides: otra opción"><span class="sr-only">Distinto de lo que pides: </span>${esc(x.label)}</span>` : esc(x.label)).join(' · ');
 }
 function offerTotal(item) {return item.at ? withIva(Number(item.at.total), item.tax_status) : null;}  // with VAT: what the offers are ranked by
 const netOf = (value, tax) => tax === 'gross' ? Number(value) / IVA : Number(value);  // without VAT: what is shown first
@@ -160,14 +160,21 @@ function byRank(a, b) {
   const x = offerRank(a), y = offerRank(b);
   return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
 }
+const STALE_DAYS = 30;
+const ageDays = item => Math.max(0, Math.floor((Date.now() - new Date(item.observed_at).getTime()) / 864e5));
+// A line above the results when some provider's prices are old: they are read by hand, so they age
+function staleNotice(groups) {
+  const old = groups.filter(g => g.best && ageDays(g.best) > STALE_DAYS).map(g => `${g.provider.name} (${ageDays(g.best)} días)`);
+  return old.length ? `<p class="stale-note"><strong>Aviso:</strong> precios con más de ${STALE_DAYS} días en ${esc(old.join(', '))}. Conviene volver a recogerlos (opción 1 de Herramientas).</p>` : '';
+}
 function chips(item, qty) {
   const tier = (item.prices || []).find(x => Number(x[0]) === qty) || (item.prices || [])[0], out = [];
   out.push(item.shipping === 'included' ? ['ok', 'Envío incluido'] : item.shipping === 'excluded' ? ['warn', 'Envío aparte'] : ['warn', 'Envío sin confirmar']);
   if (tier && tier[2] != null) out.push(['', `Entrega ~${tier[2]} días`]);
   if (item.tax_status === 'unknown') out.push(['warn', 'IVA sin confirmar']);
   if (item.at?.estimated) out.push(['warn', item.at.between ? `Estimado entre ${item.at.between[0]} y ${item.at.between[1]} uds` : 'Precio estimado']);
-  const age = Math.floor((Date.now() - new Date(item.observed_at).getTime()) / 864e5);
-  if (age > 30) out.push(['warn', `Dato de hace ${age} días`]);
+  const age = ageDays(item);
+  out.push([age > STALE_DAYS ? 'warn' : '', age <= 0 ? 'Leído hoy' : `Leído hace ${age} día${age === 1 ? '' : 's'}${age > STALE_DAYS ? ' ⚠' : ''}`]);
   if (item.manual) out.push(['', '✎ Anotado a mano']);
   return out.map(([kind, text]) => `<span class="chip ${kind}">${esc(text)}</span>`).join('');
 }
@@ -272,7 +279,7 @@ function renderResults(items, qty, links = []) {
     const ownLinks = links.filter(l => l.provider === own.id);
     if (ownLinks.length) groups.push({provider: own, items: [], best: null, links: ownLinks});
   }
-  $('tool-best').innerHTML = bestBanner(groups, qty);
+  $('tool-best').innerHTML = bestBanner(groups, qty) + staleNotice(groups);
   const cheapestId = groups.find(g => hasPrice(g))?.provider.id;
   $('tool-results').innerHTML = groups.length ? groups.map(g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best.near ? ['best'] : [], groups)).join('')
     : `<div class="empty-box"><p><strong>${cardsTool.mode === 'generic' ? 'No hay nada recogido con ese nombre y esas opciones.' : 'Ninguna ficha recogida tiene todo esto.'}</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos${cardsTool.mode === 'generic' ? ' o con otra palabra' : ' (por ejemplo el gramaje o el acabado), o vuelve a lo estándar'}.</p></div>`;

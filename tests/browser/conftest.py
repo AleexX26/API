@@ -4,6 +4,8 @@ import json
 import socket
 import threading
 import time
+from datetime import date, timedelta
+
 import pytest
 
 playwright_sync = pytest.importorskip("playwright.sync_api")
@@ -39,7 +41,9 @@ def _catalog(tmp_path):
     ):
         store.replace_offers(db, provider, f"https://example.test/{provider}/{slug}", title,
                              [{**base, "quantity": 500, "kind": "total", "price": "40.00" if provider == "laimprentadeinternet" else "20.00" if slug == "tarjetas-premium" else "30.00"}, {**base, "quantity": 1000, "kind": "total", "price": "45.00"}],
-                             "2026-10-27", [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}, {"group": "Impresión", "label": "4+0 una cara"}])
+                             # Printai's reading is 40 days old, the others are from today: the screen warns about the old one
+                             (date.today() - timedelta(days=40 if provider == "printai" else 0)).isoformat(),
+                             [{"group": "Formato", "label": size}, {"group": "Papel", "label": paper}, {"group": "Impresión", "label": "4+0 una cara"}])
     with db:  # our supplier cost: a profit at 500 uds and a loss at 1000
         db.executemany("INSERT INTO own_costs VALUES (?,?,?)", [("https://example.test/laimprentadeinternet/tarjetas", 500, "28.00"),
                                                                 ("https://example.test/laimprentadeinternet/tarjetas", 1000, "50.00")])
