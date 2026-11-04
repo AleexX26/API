@@ -1,88 +1,139 @@
-/* Capa de diseño sencilla para administración: papel cálido, tinta oscura, verde = más barato, violeta = nuestra web.
-   Se carga después de style.css y lo sustituye en lo visible. Sin estilos en línea (CSP). */
-:root{--paper:#f4f1ea;--card:#fffdf8;--ink:#16181d;--muted:#555a64;--line:#d6d0c2;--good:#0a6a37;--good-bg:#def3e4;--bad:#b3261e;--bad-bg:#fbe3e0;--us:#6b46c1;--us-bg:#f3effb;--sun:#ffd84a;--teal:#16181d;--shadow:0 1px 2px rgba(22,24,29,.07),0 10px 26px -14px rgba(22,24,29,.28)}
+/* Diseño del CRM (tema oscuro) en una sola pantalla, sin scroll vertical en ordenador:
+   barra superior (buscador + pedido del cliente) · características · lo más barato · un contenedor por proveedor
+   (del más barato al más caro y, el último, nuestra web con su beneficio). Sin estilos en línea (CSP). */
+:root{color-scheme:dark;--bg:#0f1216;--surf:#161a20;--surf2:#1d222a;--line:#2a313b;--txt:#dfe4ea;--muted:#8b95a3;--accent:#2f6bdc;--good:#4ade80;--good-bg:#12301f;--bad:#ff8a80;--bad-bg:#3a1a1a;--us:#b69cff;--us-bg:#1f1a33;--sun:#ffd84a;
+--ink:#dfe4ea;--border:#2a313b;--paper:#0f1216;--mint:#12301f;--teal:#7aa7ff;--shadow:0 1px 2px rgba(0,0,0,.4)}
 html{scroll-behavior:auto}
-body{background:var(--paper);color:var(--ink);font:16px/1.5 'Segoe UI',system-ui,Arial,sans-serif;font-variant-numeric:tabular-nums;caret-color:var(--us);scrollbar-color:#9a947f var(--paper)}
-::selection{background:var(--sun);color:var(--ink)}
-:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
-.sidebar,main>header,.eyebrow,footer,#finder>.results-heading,#finder-note,#cards-tool>.results-heading .eyebrow{display:none!important}
-main{margin:0 auto;padding:22px 28px 60px;max-width:1500px}
-h2{letter-spacing:-.01em}
+body{background:var(--bg);color:var(--txt);font:14px/1.45 'Segoe UI',system-ui,Arial,sans-serif;font-variant-numeric:tabular-nums;caret-color:var(--us);scrollbar-color:#3a4350 var(--bg)}
+::selection{background:var(--sun);color:#111}
+:focus-visible{outline:2px solid #7aa7ff;outline-offset:2px}
+a{color:#7aa7ff}
+.sidebar,main>header,.eyebrow,footer,#finder>.results-heading,#finder-note,#cat-chips,#cat-recent,#other-tools,#catalog{display:none!important}
+main{margin:0;padding:0;max-width:none;display:flex;flex-direction:column}
 
-/* Buscador y pedido del cliente */
-#finder{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 16px;align-items:start;margin:0 0 18px}
-#finder .catalog-search{margin:0;padding:6px 8px 6px 18px;border:2px solid var(--ink);border-radius:14px;background:#fff;grid-column:1}
-#finder .catalog-search input{font-size:18px;padding:10px 4px}
-#finder .catalog-search button,.primary,button.primary{background:var(--ink);border:2px solid var(--ink);color:#fff;border-radius:10px;font-weight:700;padding:10px 20px}
-#finder .catalog-search button:hover,.primary:hover{background:#2d313b}
-#finder .suggestions{grid-column:1;margin:0}
-#cat-applied{grid-column:1}
-.customer-box{grid-column:2;grid-row:1;margin:0;padding:0;background:transparent;border:0;position:relative}
-.customer-box>summary{list-style:none;display:inline-flex;align-items:center;gap:8px;padding:15px 22px;border-radius:14px;background:var(--sun);color:var(--ink);font-weight:800;font-size:16px;cursor:pointer;box-shadow:var(--shadow);white-space:nowrap}
+/* Barra superior */
+#finder{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;margin:0;padding:10px 20px;background:var(--surf);border-bottom:1px solid var(--line);position:relative;z-index:5}
+#finder::before{content:"mesa";font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--txt)}
+#finder .catalog-search{margin:0;padding:3px 6px 3px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surf2);grid-column:2}
+#finder .catalog-search input{font-size:15px;padding:7px 4px;background:transparent;color:var(--txt)}
+#finder .catalog-search input::placeholder{color:var(--muted)}
+#finder .search-icon{color:var(--muted)}
+#finder .catalog-search button,.primary,button.primary{background:var(--accent);border:1px solid var(--accent);color:#fff;border-radius:8px;font-weight:700;padding:7px 16px}
+#cat-applied{grid-column:2}#cat-applied:empty{display:none}
+.customer-box{grid-column:3;grid-row:1;margin:0;padding:0;background:transparent;border:0;position:relative}
+.customer-box>summary{list-style:none;display:inline-flex;align-items:center;padding:9px 16px;border-radius:10px;background:var(--sun);color:#1a1500;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
 .customer-box>summary::-webkit-details-marker{display:none}
-.customer-box[open]{grid-column:1/-1;grid-row:auto;padding:16px 18px;background:var(--card);border:2px solid var(--sun);border-radius:14px}
-.customer-box[open]>summary{margin-bottom:10px}
-.customer-box textarea{font-size:16px;padding:12px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.customer-box[open]>*:not(summary){position:absolute;right:0;top:calc(100% + 8px);width:min(560px,92vw);z-index:20}
+.customer-box[open]>textarea{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surf);color:var(--txt);box-shadow:0 18px 40px rgba(0,0,0,.55);font-size:14px}
+.customer-box[open]>textarea~*{top:auto}
+.customer-box[open]{background:transparent}
+.customer-box .customer-actions{position:static!important;width:auto!important}
 
-/* Pantalla principal: pedido a la izquierda, respuesta a la derecha */
-#cards-tool{display:grid;grid-template-columns:minmax(330px,400px) minmax(0,1fr);grid-template-areas:"head head" "steps best" "steps results";gap:16px 24px;align-items:start}
-#cards-tool>.results-heading{grid-area:head;margin:0}
-#cards-tool>.results-heading h2{font-size:26px;margin:0;font-weight:800}
-#tool-summary{margin:2px 0 0;color:var(--muted);font-size:14px}
-.tool-steps{grid-area:steps;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;margin:0;padding:20px;gap:20px;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
-#tool-best{grid-area:best;min-width:0}
-#tool-results{grid-area:results;min-width:0;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
-.step{grid-template-columns:1fr;gap:8px}
-.step-label{font-size:15px;font-weight:800;color:var(--ink)}
-.pill{border:2px solid var(--line);background:#fff;color:var(--ink);padding:9px 16px;font-size:15px;font-weight:600;border-radius:12px;min-height:42px}
-.pill:hover{border-color:var(--ink)}
-.pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.pill small{font-size:12px;font-weight:600}
-.pill-select,.pill-input{border:2px dashed #8b8570;border-radius:12px;padding:9px 12px;font-size:15px;min-height:42px;background:#fff;color:var(--ink)}
-.pill-select.on,.pill-input.on{border:2px solid var(--ink);font-weight:700}
-.tool-more summary{color:var(--ink);font-weight:700;font-size:14px;text-decoration:underline;text-underline-offset:3px}
-.more-grid{grid-template-columns:1fr 1fr}
-.step-actions button,#tool-reset{background:transparent;border:2px solid var(--line);border-radius:10px;padding:8px 14px;font-weight:700;color:var(--ink)}
+/* Características, lo más barato y los contenedores en una sola pantalla */
+#cards-tool{display:flex;flex-direction:column;gap:10px;padding:12px 20px 52px;min-height:0}
+#cards-tool>.results-heading{display:flex;align-items:baseline;gap:14px;margin:0}
+#cards-tool>.results-heading h2{font-size:16px;margin:0;font-weight:800;color:var(--txt)}
+#tool-summary{margin:0;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tool-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px 18px;margin:0;padding:12px 16px;background:var(--surf);border:1px solid var(--line);border-radius:12px;box-shadow:none;position:static;max-height:none;overflow:visible;align-items:start}
+.step{display:flex;flex-direction:column;gap:5px;grid-template-columns:none}
+.step-label{font-size:12px;font-weight:700;color:var(--muted)}
+.pills{gap:5px}
+.pill{border:1px solid var(--line);background:var(--surf2);color:var(--txt);padding:3px 10px;font-size:13px;font-weight:600;border-radius:8px;min-height:30px}
+.pill:hover{border-color:#5b6778}
+.pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pill small{display:none}
+.pill-select,.pill-input{border:1px dashed #4a5563;border-radius:8px;padding:3px 8px;font-size:13px;min-height:30px;background:var(--surf2);color:var(--txt)}
+.pill-select.on,.pill-input.on{border:1px solid var(--accent);font-weight:700}
+.pill-input{width:110px}
+.tool-more{grid-column:1/-1}.tool-more summary{color:#7aa7ff;font-weight:700;font-size:12px;cursor:pointer}
+.more-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.more-grid select{background:var(--surf2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+.step-actions{grid-column:1/-1}.step-actions button,#tool-reset{background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-weight:700;color:var(--txt);font-size:12px}
 
-/* La respuesta: quién es más barato, grande */
-.best-banner{background:var(--ink);color:#fff;border:0;border-radius:20px;padding:24px 28px;margin:0;box-shadow:var(--shadow)}
+/* Contenedor de lo más barato */
+.best-banner{display:flex;flex-wrap:wrap;align-items:center;gap:6px 28px;margin:0;padding:12px 20px;background:var(--good-bg);border:1px solid #1f5a38;border-radius:12px;color:var(--txt)}
 .best-banner p{margin:0}
-.hero-label{font-size:15px;font-weight:600;color:#cfd3dc}
-.hero-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 28px;margin:6px 0 4px}
-.hero-name{font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
-.hero-price{font-size:46px;font-weight:800;letter-spacing:-.03em;color:#74e69a;line-height:1.1}
-.hero-price small{font-size:17px;font-weight:600;color:#cfd3dc;letter-spacing:0}
-.hero-sub{font-size:16px;color:#e4e7ee}
-.hero-us{margin-top:16px!important;padding:14px 18px;border-radius:14px;background:rgba(255,255,255,.1);font-size:17px;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
-.hero-us strong{font-size:26px;font-weight:800}
-.hero-us .diff.up{color:#74e69a}.hero-us .diff.down{color:#ff9d95}.hero-us .diff.same{color:#e4e7ee}
-.hero-note{margin-top:10px!important;font-size:14px;color:#ffe08a}
+.hero-label{font-size:12px;font-weight:700;color:#86efac;flex-basis:100%}
+.hero-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px;margin:0}
+.hero-name{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.hero-price{font-size:34px;font-weight:800;letter-spacing:-.03em;color:var(--good);line-height:1.1}
+.hero-price small{font-size:13px;font-weight:600;color:#a7f3c5;letter-spacing:0}
+.hero-sub{font-size:13px;color:#c8d3cd}
+.hero-us{margin:0 0 0 auto!important;padding:8px 14px;border-radius:10px;background:rgba(0,0,0,.28);font-size:14px;display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline}
+.hero-us strong{font-size:20px;font-weight:800}
+.hero-us .diff.up{color:var(--good)}.hero-us .diff.down{color:var(--bad)}.hero-us .diff.same{color:var(--txt)}
+.hero-note{flex-basis:100%;font-size:12px;color:#fcd34d}
 
-/* Una tarjeta por proveedor */
-.offer{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;gap:12px;box-shadow:var(--shadow)}
-.offer.best{border:3px solid var(--good)}
-.offer .monogram{background:var(--ink);color:#fff;border-radius:10px}
-.offer-head strong{font-size:18px}
-.tag{font-size:12px;padding:3px 10px;border-radius:8px}
-.tag.best{background:var(--good);color:#fff}
-.offer-price .big{font-size:34px;font-weight:800}
-.offer-price .tax{font-size:14px}
-.offer-price .with-iva{font-size:15px;color:var(--ink)}
-.diff-side{background:#efece3;border-radius:12px;padding:8px 12px;min-width:104px}
+/* Un contenedor por proveedor: del más barato al más caro y, el último, nuestra web */
+#tool-results{display:flex;gap:12px;align-items:stretch;overflow-x:auto;overflow-y:auto;padding-bottom:4px;min-height:0;max-height:calc(100vh - 330px)}
+.offer{flex:1 1 250px;min-width:250px;max-width:380px;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px 14px;gap:8px;box-shadow:none;overflow:auto}
+.offer.best{border:2px solid var(--good)}
+.offer-head{gap:8px}
+.offer .monogram{background:var(--surf2);color:var(--txt);border-radius:8px;width:30px;height:30px;font-size:12px}
+.offer-head strong{font-size:15px;color:var(--txt)}
+.tag{font-size:11px;padding:2px 8px;border-radius:6px}
+.tag.best{background:var(--good);color:#08210f}
+.offer-price{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
+.offer-price .big{font-size:26px;font-weight:800;white-space:nowrap;color:var(--txt)}
+.offer-price .tax{font-size:12px;white-space:nowrap;color:var(--muted)}
+.offer-price .with-iva{font-size:12px;color:var(--muted)}
+.offer-price .per{font-size:12px;color:var(--muted)}
+.diff-side{background:var(--surf2);border-radius:10px;padding:5px 10px;min-width:92px;line-height:1.2}
 .diff-side:has(.diff.up){background:var(--good-bg)}.diff-side:has(.diff.down){background:var(--bad-bg)}
-.diff-label{font-size:12px;color:var(--muted);font-weight:600}
-.diff-side strong{font-size:22px;font-weight:800}.diff-side small{font-size:14px;font-weight:700}
+.diff-label{font-size:11px;color:var(--muted);font-weight:600}
+.diff-side strong{font-size:18px;font-weight:800}.diff-side small{font-size:12px;font-weight:700}
 .diff.up{color:var(--good)}.diff.down{color:var(--bad)}.diff.same{color:var(--muted)}
-.offer.own,.offer.own.best{background:var(--us-bg);border:3px solid var(--us)}
-.offer.own .monogram,.tag.own{background:var(--us);color:#fff}
-.offer .go-button{background:var(--ink);color:#fff;border-radius:10px;padding:10px 16px;font-weight:700;text-decoration:none}
-.offer .outline{border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:10px;padding:8px 14px;font-weight:700}
-.chip{font-size:12px;border-radius:8px;padding:3px 10px}
-.offer-near{border-radius:10px}
+.chip{font-size:11px;border-radius:6px;padding:2px 8px;background:#242b35;color:#c5ccd6}
+.chip.ok{background:var(--good-bg);color:#86efac}.chip.warn{background:#3b2f12;color:#fcd34d}
+.offer-what{font-size:12px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.offer-near{margin:0;font-size:11px;color:#fcd34d;background:#3b2f12;border-radius:8px;padding:6px 8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.offer-actions{gap:6px}
+.offer .go-button{background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none;font-size:13px}
+.offer .outline{border:1px solid var(--line);background:transparent;color:var(--txt);border-radius:8px;padding:5px 10px;font-weight:700;font-size:12px}
+.auto-more-products>summary{color:#7aa7ff;font-weight:700;cursor:pointer;font-size:12px}
+.offer .comparison-box,.comparison-box{background:var(--surf2);border:1px solid var(--line);color:var(--txt)}
+.comparison-box th,.comparison-box td{border-color:var(--line);color:var(--txt)}
+.auto-note{color:var(--muted)}
+.offer.own,.offer.own.best{background:var(--us-bg);border:2px solid var(--us)}
+.offer.own .monogram{background:var(--us);color:#1a1033}.tag.own{background:var(--us);color:#1a1033}
+.empty-box{background:var(--surf);border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--txt)}
 
-/* Lo secundario queda plegado y discreto */
-.auto-more-products>summary,.other-tools>summary{color:var(--ink);font-weight:700;cursor:pointer}
-#other-tools{display:none}
-@media(max-width:1000px){#cards-tool{grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "best" "steps" "results"}.tool-steps{position:static;max-height:none}#finder{grid-template-columns:minmax(0,1fr)}.catalog-search,.suggestions{min-width:0}.customer-box{grid-column:1;grid-row:auto}.hero-name{font-size:30px}.hero-price{font-size:36px}main{padding:16px}}
-#tool-results{grid-template-columns:repeat(auto-fill,minmax(min(360px,100%),1fr))}
-.offer-price{flex-wrap:wrap;gap:10px 16px}.offer-price .big{white-space:nowrap}.offer-price .tax{white-space:nowrap}
+/* Pie: precios anotados y estado de los datos, abren hacia arriba */
+#manual-box,#data-status{position:fixed;bottom:8px;margin:0;z-index:6}
+#manual-box{left:20px}#data-status{right:20px}
+#manual-box>summary,#data-status summary{background:var(--surf2);border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--txt);cursor:pointer;list-style:none}
+#manual-box[open]>*:not(summary),#data-status details[open]>*:not(summary){position:absolute;bottom:calc(100% + 6px);left:0;width:min(640px,90vw);max-height:60vh;overflow:auto;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+#data-status details[open]>*:not(summary){left:auto;right:0}
+#manual-box,#data-status{font-size:12px;color:var(--txt)}
+
+/* Ventanas y avisos en oscuro */
+dialog{background:var(--surf);color:var(--txt);border:1px solid var(--line);border-radius:14px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog input,dialog select,dialog textarea{background:var(--surf2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+dialog button.outline,dialog .icon-button{color:var(--txt);border-color:var(--line);background:transparent}
+dialog label{color:var(--txt)}
+#toast{background:var(--surf2);color:var(--txt);border:1px solid var(--line)}
+
+/* Una sola pantalla en ordenador; en pantallas pequeñas se apila y se puede bajar */
+@media(min-width:1000px) and (min-height:560px){html,body{height:100vh;overflow:hidden}main{height:100vh}#cards-tool{flex:1;min-height:0}#tool-results{flex:1;max-height:none}}
+@media(max-width:1300px){.tool-steps{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1000px){.tool-steps{grid-template-columns:repeat(2,minmax(0,1fr))}#tool-results{flex-direction:column;max-height:none;overflow:visible}.offer{max-width:none;min-width:0}#finder{grid-template-columns:minmax(0,1fr);padding:10px 12px}#finder::before{display:none}#finder .catalog-search,.customer-box{grid-column:1;grid-row:auto}#cards-tool{padding:10px 12px 60px}.hero-us{margin-left:0!important}}
+@media(max-width:560px){.tool-steps{grid-template-columns:minmax(0,1fr)}.more-grid{grid-template-columns:minmax(0,1fr)}}
+/* Más compacto para que quepa todo sin bajar */
+#finder{padding:7px 20px}
+#cards-tool{gap:8px;padding:8px 20px 44px}
+#cards-tool>.results-heading>div{display:flex;align-items:baseline;gap:14px;min-width:0}
+#cards-tool>.results-heading h2{margin:0}#tool-summary{margin:0}
+.tool-steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 22px;padding:8px 14px}
+.step{flex-direction:row;align-items:center;gap:10px}
+.step-label{flex:0 0 74px;font-size:12px}
+.pills{flex:1;min-width:0;gap:4px}
+.pill,.pill-select,.pill-input{min-height:26px;padding:2px 9px;font-size:12.5px}
+.pill-input{width:96px}
+.best-banner{padding:8px 18px}.hero-name{font-size:22px}.hero-price{font-size:28px}.hero-label{display:none}
+.hero-us{padding:6px 12px}
+@media(max-width:1300px){.tool-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.tool-steps{grid-template-columns:minmax(0,1fr)}}
+#cards-tool>.results-heading{padding:0;margin:0}
+#cards-tool .results-heading p{margin:0}
+.tool-steps{padding:6px 14px}

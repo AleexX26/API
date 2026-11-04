@@ -83,10 +83,15 @@ def test_pantalla_sencilla_sin_menu_lateral_y_con_el_buscador_a_la_vista(page):
     expect(page.locator(".sidebar")).to_be_hidden()
     expect(page.locator("#cat-q")).to_be_visible()
     expect(page.locator("#customer-box summary")).to_be_visible()
-    page.mouse.wheel(0, 1500)
+    pressed(page, "quantity", "500").click()
+    expect(page.locator(".best-banner")).to_be_visible()
     page.wait_for_timeout(300)
     if page.size == "escritorio":  # el pedido se queda a la vista mientras se mira la respuesta
-        assert page.locator("#tool-steps").evaluate("e => getComputedStyle(e).position") == "sticky"  # el pedido acompaña a la respuesta
+        alto = page.evaluate("[document.documentElement.scrollHeight, innerHeight]")
+        assert alto[0] <= alto[1], f"en ordenador no debe haber scroll vertical: {alto}"
+        for sel in ("#cat-q", "#customer-box summary", "#tool-steps", ".best-banner", ".offer.own"):
+            caja = page.locator(sel).first.bounding_box()
+            assert caja and caja["y"] + caja["height"] <= alto[1] + 1, f"{sel} queda fuera de la pantalla"
 
 
 def test_lo_mas_barato_sale_grande_arriba(page):
@@ -94,7 +99,7 @@ def test_lo_mas_barato_sale_grande_arriba(page):
     pressed(page, "quantity", "500").click()
     expect(page.locator(".best-banner .hero-name")).to_have_text("Onlineprinters")
     expect(page.locator(".best-banner .hero-price")).to_contain_text("30,00")
-    assert page.locator(".best-banner .hero-price").evaluate("e => parseFloat(getComputedStyle(e).fontSize)") >= 36
+    assert page.locator(".best-banner .hero-price").evaluate("e => parseFloat(getComputedStyle(e).fontSize)") >= 26
     expect(page.locator(".best-banner .hero-us .diff.up")).to_contain_text("+10,00")
 
 
@@ -192,7 +197,7 @@ def test_nuestra_web_sale_la_ultima_con_la_diferencia_en_color(page):
     assert nombres[-1] != nombres[0] and page.locator(".offer").last.get_attribute("class").find("own") >= 0
     expect(page.locator(".offer.own .diff.up").first).to_contain_text("+")  # 40 sin IVA frente a 30: cobramos mas, en verde
     color = page.locator(".offer.own .diff.up").first.evaluate("e => getComputedStyle(e).color")
-    assert color == "rgb(10, 106, 55)"
+    assert color == "rgb(74, 222, 128)"
     pressed(page, "quantity", "1000").click()
     expect(page.locator(".offer.own .diff.same").first).to_contain_text("igual")
 
@@ -212,6 +217,6 @@ def test_cada_proveedor_enseña_a_la_izquierda_la_diferencia_con_nuestra_web(pag
 def test_nuestra_web_tiene_otro_color_que_los_proveedores(page):
     open_home(page)
     fondo = lambda sel: page.locator(sel).first.evaluate("e => getComputedStyle(e).backgroundColor")
-    assert fondo(".offer.own") == "rgb(243, 239, 251)"
+    assert fondo(".offer.own") == "rgb(31, 26, 51)"
     assert fondo(".offer:not(.own)") != fondo(".offer.own")
-    assert page.locator(".offer.own").first.evaluate("e => getComputedStyle(e).borderTopColor") == "rgb(107, 70, 193)"
+    assert page.locator(".offer.own").first.evaluate("e => getComputedStyle(e).borderTopColor") == "rgb(182, 156, 255)"
