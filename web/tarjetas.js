@@ -135,7 +135,7 @@ function diffOf(mineGroup, theirGroup) {
   const pct = theirs ? Math.abs(diff / theirs * 100).toFixed(1).replace('.', ',') : '0';
   return {kind, money: kind === 'same' ? 'igual' : `${sign}${euro(Math.abs(diff))}`, percent: kind === 'same' ? '' : `${sign}${pct} %`};
 }
-const hasPrice = g => offerTotal(g.best) !== null && g.best.tax_status !== 'unknown';
+const hasPrice = g => !!g.best && offerTotal(g.best) !== null && g.best.tax_status !== 'unknown';
 // On each rival's card, on the left: how our price differs from theirs.
 function diffSide(group, groups) {
   const own = groups.find(g => g.provider.own);
@@ -143,19 +143,30 @@ function diffSide(group, groups) {
   const d = diffOf(own, group);
   return `<div class="diff-side"><span class="diff-label">Nuestra web</span><strong class="diff ${d.kind}">${d.money}</strong>${d.percent ? `<small class="diff ${d.kind}">${d.percent}</small>` : ''}</div>`;
 }
+// Our shop with no price collected for this search: its own page(s) as links, so every product shows at least our web.
+function ownLinksCard(group) {
+  const p = group.provider, [first, ...rest] = group.links;
+  const link = l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a>`;
+  return `<article class="offer own no-price"><div class="offer-head"><span class="monogram">${esc(p.initials)}</span><div><strong>${esc(p.name)}</strong> <span class="tag own">Nuestra web</span></div></div>
+ <div class="offer-price"><div><div class="big muted">Sin precio aquí</div><div class="per">El precio está en nuestra web</div></div></div>
+ <p class="offer-what">${esc(first.title)}</p>
+ <div class="offer-actions"><a class="go-button" href="${esc(first.url)}" target="_blank" rel="noopener noreferrer">Ver en nuestra web ↗</a></div>
+ ${rest.length ? `<ul class="result-links">${rest.slice(0, 4).map(l => `<li>${link(l)}</li>`).join('')}</ul>` : ''}</article>`;
+}
 function offerCard(group, best, qty, badges, groups = []) {
+  if (!best) return ownLinksCard(group);
   const p = group.provider, index = cardsTool.items.indexOf(best), others = group.items.filter(i => i !== best);
   const classes = ['offer', badges.includes('best') ? 'best' : '', p.own ? 'own' : '', best.near ? 'near' : ''].filter(Boolean).join(' ');
   return `<article class="${classes}"><div class="offer-head"><span class="monogram">${esc(p.initials)}</span><div><strong>${esc(p.name)}</strong>${p.own ? ' <span class="tag own">Nuestra web</span>' : ''}${badges.includes('best') ? ' <span class="tag best">Más barato</span>' : ''}</div></div>
  <div class="offer-price">${diffSide(group, groups)}<div>${priceBlock(best, qty)}</div></div>
  <div class="offer-meta">${chips(best, qty)}</div>
  <p class="offer-what">${esc(whatIs(best))}</p>
- ${best.near ? `<p class="offer-near">Es el precio de la configuración por defecto de la ficha: ${esc(best.near)}. En la web quizá se pueda pedir lo que quieres con otro precio.</p>` : ''}
+ ${best.near ? `<p class="offer-near">Precio de la ficha por defecto: ${esc(best.near)}. Quizá en su web se pueda pedir lo tuyo a otro precio.</p>` : ''}
  <div class="offer-actions"><a class="go-button" href="${esc(best.url)}" target="_blank" rel="noopener noreferrer">Ver ficha ↗</a>${best.near ? `<button type="button" class="outline tool-manual" data-index="${index}">✎ Anotar el precio real</button>` : ''}${best.manual ? '<button type="button" class="outline tool-edit-manual">✎ Editar el precio anotado</button>' : ''}</div>
  ${others.length || group.links?.length ? `<details class="auto-more-products"><summary>Ver más (${others.length + (group.links?.length || 0)})</summary>${others.length ? `<div class="comparison-box"><table><thead><tr><th>Ficha</th><th>Precio</th><th>Qué es</th></tr></thead><tbody>${others.map(i => otherRow(i, qty)).join('')}</tbody></table></div>` : ''}${group.links?.length ? `<div class="auto-note">Páginas sin precio recogido (solo enlace):</div><ul class="result-links">${group.links.map(l => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a></li>`).join('')}</ul>` : ''}</details>` : ''}</article>`;
 }
 function bestBanner(groups, qty) {
-  const priced = groups.map(g => ({g, item: g.best})).filter(x => offerTotal(x.item) !== null && x.item.tax_status !== 'unknown');
+  const priced = groups.map(g => ({g, item: g.best})).filter(x => x.item && offerTotal(x.item) !== null && x.item.tax_status !== 'unknown');
   const exact = priced.filter(x => !x.item.near), pool = exact.length ? exact : priced;
   if (!pool.length) return '';
   const cheapest = pool.reduce((m, x) => offerTotal(x.item) < offerTotal(m.item) ? x : m);
@@ -181,9 +192,14 @@ function renderResults(items, qty, links = []) {
     list.sort(byRank);
     return {provider: providers.find(p => p.id === id) || {id, name: id, initials: id.slice(0, 2).toUpperCase()}, items: list, best: list[0]};
   }).sort((a, b) => (a.provider.own ? 1 : 0) - (b.provider.own ? 1 : 0) || byRank(a.best, b.best));  // our web goes last
-  $('tool-best').innerHTML = bestBanner(groups, qty);
-  const cheapestId = groups.find(g => offerTotal(g.best) !== null && g.best.tax_status !== 'unknown')?.provider.id;
   groups.forEach(g => g.links = links.filter(l => l.provider === g.provider.id));
+  const own = providers.find(p => p.own);
+  if (own && !byProvider.has(own.id)) {  // nothing priced for our web in this search: show at least its page(s)
+    const ownLinks = links.filter(l => l.provider === own.id);
+    if (ownLinks.length) groups.push({provider: own, items: [], best: null, links: ownLinks});
+  }
+  $('tool-best').innerHTML = bestBanner(groups, qty);
+  const cheapestId = groups.find(g => hasPrice(g))?.provider.id;
   $('tool-results').innerHTML = groups.length ? groups.map(g => offerCard(g, g.best, qty, g.provider.id === cheapestId && !g.best.near ? ['best'] : [], groups)).join('')
     : `<div class="empty-box"><p><strong>${cardsTool.mode === 'generic' ? 'No hay nada recogido con ese nombre y esas opciones.' : 'Ninguna ficha recogida tiene todo esto.'}</strong></p><p class="auto-note">Prueba a poner «Cualquiera» en alguno de los pasos${cardsTool.mode === 'generic' ? ' o con otra palabra' : ' (por ejemplo el gramaje o el acabado), o vuelve a lo estándar'}.</p></div>`;
 }

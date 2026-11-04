@@ -68,3 +68,21 @@ def test_the_shop_is_a_provider_marked_as_ours():
     from app.services.workbench import PROVIDERS
     ours = [p for p in PROVIDERS if p.get("own")]
     assert [p["id"] for p in ours] == [shop.PROVIDER]
+
+
+def test_sitemap_pages_store_the_unpriced_product_pages_as_links(tmp_path, monkeypatch):
+    import sqlite3
+    from app.collectors import laimprentadeinternet as shop, offers, sitemaps
+    xml = (b"<urlset><url><loc>https://laimprentadeinternet.com/lonas/</loc></url>"
+           b"<url><loc>https://laimprentadeinternet.com/manteles/</loc></url></urlset>")
+    answers = {"robots.txt": b"User-agent: *\nDisallow: /wp-admin/\n", "product-sitemap.xml": xml}
+    monkeypatch.setattr(sitemaps, "fetch_cached", lambda url, *a, **k: (answers[url.rsplit("/", 1)[-1]], None))
+    db_path = tmp_path / "c.sqlite3"
+    db = offers.connect(db_path)
+    offers.replace_offers(db, shop.PROVIDER, "https://laimprentadeinternet.com/manteles/#tarifa-otros-x", "Manteles", [
+        {"quantity": 100, "kind": "total", "price": "10", "currency": "EUR", "tax": "net", "shipping": "unknown", "scope": "t"}], "2026-11-04")
+    db.close()
+    assert shop.sitemap_pages(db_path, tmp_path) == {"pages": 2, "with_prices": 1, "links": 1}
+    rows = sqlite3.connect(db_path).execute("SELECT url, status, error FROM supplier_pages WHERE provider=?", (shop.PROVIDER,)).fetchall()
+    assert rows == [("https://laimprentadeinternet.com/lonas/", "failed", shop.LINK_NOTE)]
+    assert shop.sitemap_pages(db_path, tmp_path)["links"] == 1  # repeating does not duplicate

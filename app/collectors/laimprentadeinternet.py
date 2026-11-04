@@ -205,6 +205,40 @@ def read_prices(url: str, form: list[dict], prices: dict, log=None) -> None:
             browser.close()
 
 
+SITEMAP = f"{SITE}/product-sitemap.xml"
+LINK_NOTE = "ficha propia sin precio recogido"
+
+
+def sitemap_pages(db_path: Path, cache_dir: Path, now: datetime | None = None) -> dict:
+    """Every product page of our shop (its product sitemap), so that a search always shows at least our web.
+
+    The pages that already have prices in the comparator are left out; the others are stored as links without price
+    (`supplier_pages` failed with LINK_NOTE), which the screens list as "Ver en nuestra web".
+    """
+    now = now or datetime.now(timezone.utc)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    state: dict = {}
+    robots, _ = sitemaps.fetch_cached(f"{SITE}/robots.txt", cache_dir / "robots.txt", now, state, expected="text")
+    if not navigation_allowed(robots.decode("utf-8", "replace"), SITEMAP):
+        raise ValueError("robots.txt does not permit the product sitemap")
+    xml, _ = sitemaps.fetch_cached(SITEMAP, cache_dir / "product-sitemap.xml", now, state, expected="text")
+    pages = [u for u in re.findall(r"<loc>([^<]+)</loc>", xml.decode("utf-8", "replace")) if u.startswith(SITE + "/")]
+    db = offers.connect(db_path)
+    linked = priced = 0
+    try:
+        with db:
+            db.execute("DELETE FROM supplier_pages WHERE provider=? AND error=?", (PROVIDER, LINK_NOTE))
+        for url in pages:
+            if db.execute("SELECT 1 FROM supplier_offers WHERE provider=? AND (product_url=? OR product_url LIKE ?) LIMIT 1", (PROVIDER, url, url + "#%")).fetchone():
+                priced += 1
+                continue
+            offers.record_page(db, PROVIDER, url, now.isoformat(), "failed", 0, LINK_NOTE)
+            linked += 1
+    finally:
+        db.close()
+    return {"pages": len(pages), "with_prices": priced, "links": linked}
+
+
 def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, now: datetime | None = None, log=None) -> dict:
     now = now or datetime.now(timezone.utc)
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -254,8 +288,12 @@ if __name__ == "__main__":
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
     cli.add_argument("--cache", type=Path, default=ROOT / "data/cache/laimprentadeinternet")
+    cli.add_argument("--sitemap", action="store_true", help="solo guardar las fichas de nuestra tienda (sitemap) como enlaces sin precio")
     cli.add_argument("url", nargs="*")
     args = cli.parse_args()
+    if args.sitemap:
+        print(json.dumps(sitemap_pages(args.db, args.cache), ensure_ascii=False, indent=1))
+        raise SystemExit(0)
     result = collect(args.db, args.cache, args.url or None,
                      log=lambda done, total: print(json.dumps({"precios": done, "de": total}), file=sys.stderr, flush=True))
     print(json.dumps(result, ensure_ascii=False, indent=1))

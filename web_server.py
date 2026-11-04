@@ -26,6 +26,16 @@ if __name__ == "__main__":
     parser.add_argument("--open", action="store_true", help="Open the browser once the server is ready")
     parser.add_argument("--lan", action="store_true", help="Also serve the other computers of the private network (read-only)")
     args = parser.parse_args()
+    def warm_up():
+        """Load the catalog into memory right after start, so the first screen does not wait ~1 s for it."""
+        for _ in range(100):
+            try:
+                for path in ("/api/providers", "/api/suggestions", "/api/card-options", "/api/catalog?q=tarjetas%20de%20visita&limit=200&quantity=100"):
+                    urlopen("http://127.0.0.1:8765" + path, timeout=30).read()
+                return
+            except OSError:
+                time.sleep(0.2)
+    threading.Thread(target=warm_up, daemon=True).start()
     if args.open:
         def open_when_ready():
             for _ in range(50):

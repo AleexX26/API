@@ -45,6 +45,7 @@ if not exist "data\registros" mkdir "data\registros"
 echo === Print24: fichas nuevas ===
 "%PY%" -m app.collectors.products >> data\registros\print24.json 2>> data\registros\print24.log
 "%PY%" -m app.collectors.specs
+"%PY%" -m app.collectors.laimprentadeinternet --sitemap
 echo.
 choice /c TS /n /m "Cantidades de Print24: [T] todas las fichas, 1-2 horas  [S] solo tarjetas de visita: "
 set "ALL=%errorlevel%"

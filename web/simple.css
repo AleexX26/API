@@ -198,3 +198,7 @@ body{padding-top:12px}
 @media(max-width:1000px){#manual-box>summary,#data-status summary{width:100%}#manual-box,#data-status{flex:1 1 40%}}
 #manual-box>summary,#data-status summary{display:block;line-height:34px;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cards-tool>.results-heading,#cards-tool>.tool-steps,#cards-tool>#tool-best{flex-shrink:0}
+
+/* El aviso amarillo de «configuración parecida» se lee entero */
+.offer-near{display:block;-webkit-line-clamp:unset;overflow:visible;font-size:12px;line-height:1.4;padding:8px 10px;flex-shrink:0}
+.offer>*{flex-shrink:0}
