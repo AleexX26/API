@@ -82,6 +82,14 @@ if errorlevel 1 (
   echo.
   echo === Nuestra web: tarjetas, flyers, folletos, triptico y diptico ^(varias horas^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log
+  if exist ".env" (
+    echo.
+    echo === Tienda WooCommerce: productos y categorias ^(solo lectura, necesita el archivo .env^) ===
+    "%PY%" -m app.collectors.woocommerce 2>> data\registros\woocommerce.log
+  ) else (
+    echo.
+    echo Sin archivo .env: me salto WooCommerce. Copia .env.example como .env y escribe tus claves para incluirlo.
+  )
   echo.
   echo === Truyol ===
   if "%TRU%"=="1" ( "%PY%" -m app.collectors.truyol --grupo todos 2>> data\registros\truyol.log )

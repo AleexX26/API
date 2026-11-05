@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.collectors import woocommerce
 from app.services import app_settings, manual_prices, print24_captures
 from app.services.cards import CARD_KEYS, CARD_TYPES, card_form
 from app.services.products import product_form
@@ -414,6 +415,16 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         if catalog is None:
             return {"items": []}
         return {"items": print24_captures.list_captures(Path(catalog))}
+
+    @app.get("/api/shop/products")
+    def shop_products(q: str = Query("", max_length=100), limit: int = Query(100, ge=1, le=500)):
+        """Products of our own shop imported with `python -m app.collectors.woocommerce` (read only; nothing is asked from here)."""
+        return {"items": woocommerce.list_products(Path(catalog), q, limit) if catalog is not None else []}
+
+    @app.get("/api/shop/coverage")
+    def shop_coverage():
+        """Published products of the shop with prices in the comparator, only a link, or nothing."""
+        return woocommerce.coverage(Path(catalog)) if catalog is not None else {"with_prices": [], "link_only": [], "missing": []}
 
     app.mount("/assets", StaticFiles(directory=ROOT / "web"), name="assets")
     return app
