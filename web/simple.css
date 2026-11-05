@@ -299,9 +299,14 @@ dialog .primary{background:var(--accent);color:#fff;border:1px solid var(--accen
 /* Adaptable a cualquier ventana o pantalla */
 /* 1) (los paneles de «Precios anotados» y «Estado de los datos» flotan debajo de sus botones: ver el final del archivo) */
 /* 2) Pantallas grandes: todo (letra, botones, tarjetas) crece a la vez en vez de quedar pequeño en un monitor de 27" */
-@media(min-width:1700px){#finder,#cards-tool{zoom:1.15}}
-@media(min-width:2200px){#finder,#cards-tool{zoom:1.35}}
-@media(min-width:3000px){#finder,#cards-tool{zoom:1.8}}
+/* El zoom va en <main> entero (no en dos cajas sueltas) y su altura se divide por el zoom: así sigue habiendo UN solo contenedor
+   con scroll y la pantalla única mide exactamente la ventana. */
+@media(min-width:1700px){main{zoom:1.15}}
+@media(min-width:2200px){main{zoom:1.35}}
+@media(min-width:3000px){main{zoom:1.8}}
+@media(min-width:1700px) and (min-height:560px){main{height:calc(100vh / 1.15)}}
+@media(min-width:2200px) and (min-height:560px){main{height:calc(100vh / 1.35)}}
+@media(min-width:3000px) and (min-height:560px){main{height:calc(100vh / 1.8)}}
 /* 3) Ventanas bajas o estrechas: los diálogos caben siempre y se desplazan por dentro */
 dialog{max-width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box}
 @media(max-width:560px){dialog{padding:16px;width:calc(100vw - 16px)}}
@@ -327,3 +332,11 @@ img,svg,video{max-width:100%;height:auto}
 @media(max-width:1000px){#manual-box,#data-status{flex:1 1 40%!important;min-width:0}#manual-box>summary,#data-status summary{width:100%;min-width:0}
  #manual-body table,#data-status-body table{display:block;overflow-x:auto}}
 #manual-box,#data-status,#data-status details{display:block;height:36px;margin:0!important;vertical-align:top}
+
+/* En CUALQUIER producto: si todo cabe en la ventana se ve de una vez; si no cabe (muchas características, muchos proveedores, ventana
+   baja) la página se baja con su scroll y las tarjetas de los proveedores salen enteras, nunca cortadas dentro de una caja con su
+   propio scroll. */
+@media(min-width:1000px) and (min-height:560px){
+#cards-tool{flex:none;min-height:auto}
+#cards-tool #tool-results{flex:none;overflow:visible;max-height:none;min-height:0}
+}

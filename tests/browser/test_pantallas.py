@@ -395,3 +395,19 @@ def test_los_dos_paneles_de_la_fila_del_titulo_comparten_sitio(page):
     page.keyboard.press("Escape")
     expect(page.locator("#data-status-details[open]")).to_have_count(0)
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
+
+
+def test_en_cualquier_producto_se_puede_bajar_y_las_tarjetas_salen_enteras(page):
+    open_home(page)
+    for texto in ("", "flyers"):  # la tarjeta estándar y otro producto con muchas características
+        page.fill("#cat-q", texto)
+        expect(page.locator("#tool-results .offer").first).to_be_visible()
+        page.wait_for_timeout(400)
+        ultima = page.locator("#tool-results .offer").last
+        ultima.scroll_into_view_if_needed()  # si la página no deja bajar, queda fuera de la ventana
+        caja = ultima.bounding_box()
+        assert caja["y"] + caja["height"] <= page.viewport_size["height"] + 2, f"«{texto}»: la última tarjeta queda cortada"
+        recorte = page.evaluate("""() => [...document.querySelectorAll('#tool-results .offer')].filter(e => {
+            const box = e.getBoundingClientRect(), parent = e.parentElement.getBoundingClientRect();
+            return box.bottom > parent.bottom + 2; }).length""")
+        assert recorte == 0, f"«{texto}»: hay tarjetas cortadas por su caja"
