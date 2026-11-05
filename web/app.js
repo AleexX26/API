@@ -88,6 +88,11 @@ async function init(){
 }
 $('customer-go').addEventListener('click',readCustomer);
 $('data-status-details').addEventListener('toggle',()=>{if($('data-status-details').open&&!statusLoaded){statusLoaded=true;loadStatus();}});
+// The two panels share one place: opening one closes the other; Esc or a click outside closes it
+{const panels=[$('manual-box'),$('data-status-details')];
+ for(const p of panels)p.addEventListener('toggle',()=>{if(p.open)for(const q of panels)if(q!==p)q.open=false;});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')for(const p of panels)p.open=false;});
+ document.addEventListener('click',e=>{if(!e.target.closest('#manual-box,#data-status,dialog,.tool-edit-manual'))for(const p of panels)p.open=false;});}
 window.addEventListener('hashchange',()=>{if(location.hash==='#data-status')$('data-status-details').open=true;});
 // tarjetas.js is loaded after this file: start when every script has run (a slow answer of the server must not win the race)
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

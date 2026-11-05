@@ -375,3 +375,23 @@ def test_con_un_panel_abierto_se_puede_bajar_por_la_pagina_entera(page):
         ancho = page.evaluate("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
         assert ancho[0] <= ancho[1], f"{panel}: scroll horizontal {ancho}"
         page.locator(f"{panel} > summary").first.click()
+
+
+def test_los_dos_paneles_de_la_fila_del_titulo_comparten_sitio(page):
+    open_home(page)
+    manual, estado = page.locator("#manual-box > summary"), page.locator("#data-status summary")
+    a, b = manual.bounding_box(), estado.bounding_box()
+    if page.viewport_size["width"] >= 1000:
+        assert abs(a["y"] - b["y"]) <= 1 and a["height"] == b["height"], (a, b)  # dos botones alineados en la misma fila
+    manual.click()
+    expect(page.locator("#manual-box[open]")).to_be_visible()
+    panel = page.locator("#manual-body").bounding_box()
+    fila = page.locator("#cards-tool > .results-heading").bounding_box()
+    assert panel["y"] >= fila["y"] + fila["height"] - 1  # va debajo de los botones, no encima
+    assert abs(panel["width"] - fila["width"]) <= 2  # a todo el ancho
+    estado.click()
+    expect(page.locator("#data-status-details[open]")).to_be_visible()
+    expect(page.locator("#manual-box[open]")).to_have_count(0)  # solo uno abierto a la vez
+    page.keyboard.press("Escape")
+    expect(page.locator("#data-status-details[open]")).to_have_count(0)
+    assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")

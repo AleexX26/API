@@ -297,14 +297,7 @@ dialog .primary{background:var(--accent);color:#fff;border:1px solid var(--accen
 }
 
 /* Adaptable a cualquier ventana o pantalla */
-/* 1) Con un panel abierto (pedido del cliente, precios anotados, estado de los datos) la página deja de estar encajada
-      en la altura de la ventana: todo fluye y se baja con el scroll general. */
-@media(min-width:1000px) and (min-height:560px){
-html:has(#manual-box[open],#data-status details[open],.customer-box[open]),body:has(#manual-box[open],#data-status details[open],.customer-box[open]){height:auto;overflow:visible}
-body:has(#manual-box[open],#data-status details[open],.customer-box[open]) main{height:auto;min-height:100vh;overflow:visible}
-body:has(#manual-box[open],#data-status details[open],.customer-box[open]) #cards-tool{flex:none}
-body:has(#manual-box[open],#data-status details[open],.customer-box[open]) #tool-results{flex:none;overflow:visible;min-height:0}
-}
+/* 1) (los paneles de «Precios anotados» y «Estado de los datos» flotan debajo de sus botones: ver el final del archivo) */
 /* 2) Pantallas grandes: todo (letra, botones, tarjetas) crece a la vez en vez de quedar pequeño en un monitor de 27" */
 @media(min-width:1700px){#finder,#cards-tool{zoom:1.15}}
 @media(min-width:2200px){#finder,#cards-tool{zoom:1.35}}
@@ -314,3 +307,23 @@ dialog{max-width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 24px);ove
 @media(max-width:560px){dialog{padding:16px;width:calc(100vw - 16px)}}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 img,svg,video{max-width:100%;height:auto}
+
+/* «Precios anotados a mano» y «Estado de los datos»: dos botones juntos y UN solo panel debajo, a todo el ancho, por encima del
+   contenido (no empuja nada ni obliga a desplazarse); se cierra con el mismo botón, con Esc o pulsando fuera. */
+#cards-tool>.results-heading{position:relative}
+#manual-box,#data-status{flex:0 0 auto!important}
+#manual-box>summary,#data-status summary{width:auto;min-width:176px;height:36px;line-height:34px;padding:0 16px}
+#manual-box[open]>*:not(summary),#data-status details[open]>*:not(summary){position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:30;
+ max-height:min(68vh,calc(100vh - 150px));overflow:auto;margin:0;padding:6px 16px 14px;background:var(--surf2);border:1px solid #4a5870;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+#manual-body>p{margin:10px 0 6px}
+#manual-body .comparison-box,#data-status-body .comparison-box{max-height:none;overflow:visible;border:0;padding:0;margin:0}
+#manual-body table,#data-status-body table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
+#manual-body th,#data-status-body th{position:sticky;top:-6px;z-index:1;background:var(--surf2);text-align:left;padding:8px 10px;color:var(--muted);font-size:12px;font-weight:700;border-bottom:1px solid #4a5870;white-space:nowrap}
+#manual-body td,#data-status-body td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+#manual-body tbody tr:nth-child(even),#data-status-body tbody tr:nth-child(even){background:rgba(255,255,255,.03)}
+#manual-body tbody tr:hover,#data-status-body tbody tr:hover{background:rgba(79,140,255,.10)}
+#manual-body td:last-child{white-space:nowrap;text-align:right}
+#manual-body td button{padding:4px 10px;font-size:12px;margin-left:4px}
+@media(max-width:1000px){#manual-box,#data-status{flex:1 1 40%!important;min-width:0}#manual-box>summary,#data-status summary{width:100%;min-width:0}
+ #manual-body table,#data-status-body table{display:block;overflow-x:auto}}
+#manual-box,#data-status,#data-status details{display:block;height:36px;margin:0!important;vertical-align:top}
