@@ -29,6 +29,13 @@ from app.services.importer import canonical_context, connect, import_matrix
 ROOT = Path(__file__).resolve().parents[2]
 CARDS = "https://print24.com/es/productos-impresion/tarjetas-de-visita"
 QUANTITY_BOX = re.compile(r"^\s*[\d.]+ Unidades?\s*$")
+MAX_UNANSWERED = 3  # pages in a row whose own price request gets no answer: then it is a block, not a page without configurator
+
+
+def check_canary(unanswered_in_a_row: int, url: str) -> None:
+    """One page that never asks for its price (it has no quantity configurator, or loaded badly) is skipped; several in a row stop the run."""
+    if unanswered_in_a_row >= MAX_UNANSWERED:
+        raise ValueError(f"Canary failed at {url}: {unanswered_in_a_row} pages in a row did not get an answer to their own price request; stop for manual review")
 
 
 def quantity_options(data: dict) -> list[int]:
@@ -72,7 +79,8 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
         raise ValueError("robots.txt does not permit the price-matrix route")
     db = connect(db_path)
     now = datetime.now(timezone.utc)
-    summary = {"pages": 0, "steps": 0, "stored_quantities": 0, "unavailable": 0, "pages_without_list": 0}
+    summary = {"pages": 0, "steps": 0, "stored_quantities": 0, "unavailable": 0, "pages_without_list": 0, "unanswered": 0}
+    unanswered = 0
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=headless)
         try:
@@ -96,7 +104,12 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
                     log(json.dumps({"url": url.rsplit("/", 1)[-1], "skipped": "configuración por defecto sin recoger"}))
                     continue
                 if not first or not first[0].text().strip():  # canary: the page's own first price request
-                    raise ValueError(f"Canary failed at {url}: the page's own price request was not answered; stop")
+                    unanswered += 1
+                    summary["unanswered"] += 1
+                    log(json.dumps({"url": url.rsplit("/", 1)[-1], "skipped": "la página no pidió su precio (sin lista de cantidades o sin respuesta)"}))
+                    check_canary(unanswered, url)
+                    continue
+                unanswered = 0
                 decline = page.get_by_text("Declino", exact=True)
                 if decline.count():  # the most private choice of the cookie banner
                     decline.first.click()

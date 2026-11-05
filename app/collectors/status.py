@@ -5,7 +5,7 @@ Read-only: `python -m app.collectors.status`
 import sqlite3
 from pathlib import Path
 
-from app.collectors import onlineprinters, printai, tuskamisetas
+from app.collectors import laimprentadeinternet, onlineprinters, printai, truyol, tuskamisetas
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -14,7 +14,9 @@ def pending(provider: str, urls: list[str], seen: set[str]) -> int:
     return sum(1 for url in urls if url not in seen)
 
 
-REASONS = {"Selected quantity not found": "su tabla de precios no se puede leer (calculadora vetada por su robots.txt)",
+REASONS = {laimprentadeinternet.LINK_NOTE: "solo enlace: su precio aún no se ha leído (algunas cobran por tamaño y no se saben leer)",
+           "configurator not found": "la ficha no tiene un configurador con cantidades",
+           "Selected quantity not found": "su tabla de precios no se puede leer (calculadora vetada por su robots.txt)",
            "No Product data in page": "la página no trae datos de producto"}
 
 
@@ -31,6 +33,20 @@ def reason_text(error: str | None) -> str:
     if "No quantity/price tiles" in error:
         return "la página no muestra tabla de cantidades y precios"
     return error[:60] or "motivo no anotado"
+
+
+def offers_based(db: sqlite3.Connection, provider: str, planned: list[str]) -> dict:
+    """A provider read with a browser (Truyol, our shop): pages with prices come from `supplier_offers`, the rest from `supplier_pages`;
+    `planned` are the pages its collector is meant to read, so a page not read yet shows as pending."""
+    with_prices = {u for (u,) in db.execute("SELECT DISTINCT substr(product_url, 1, instr(product_url || '#', '#') - 1) FROM supplier_offers WHERE provider=?", (provider,))}
+    failed = {url: error for url, error in db.execute("SELECT url, error FROM supplier_pages WHERE provider=? AND status='failed'", (provider,)) if url not in with_prices}
+    reasons: dict[str, int] = {}
+    for error in failed.values():
+        key = reason_text(error)
+        reasons[key] = reasons.get(key, 0) + 1
+    last = db.execute("SELECT max(observed_at) FROM supplier_offers WHERE provider=?", (provider,)).fetchone()[0]
+    return {"provider": provider, "ok": len(with_prices), "failed": len(failed), "pending": sum(1 for u in planned if u not in with_prices),
+            "total": len(with_prices | set(failed) | set(planned)), "last": last, "reasons": reasons}
 
 
 def table(root: Path = ROOT) -> list[dict]:
@@ -57,6 +73,8 @@ def table(root: Path = ROOT) -> list[dict]:
             last = db.execute("SELECT max(fetched_at) FROM supplier_pages WHERE provider=?", (provider,)).fetchone()[0]
             out.append({"provider": provider, "ok": rows.get("ok", 0), "failed": rows.get("failed", 0), "pending": pending(provider, urls, seen),
                         "total": len(urls), "last": last, "reasons": reasons})
+        out.append(offers_based(db, "truyol", [u for urls in truyol.GROUPS.values() for u in urls]))
+        out.append(offers_based(db, "laimprentadeinternet", laimprentadeinternet.PAGES))
         ok = db.execute("SELECT count(*) FROM product_pages WHERE status='ok'").fetchone()[0]
         bad = db.execute("SELECT count(*) FROM product_pages WHERE status<>'ok'").fetchone()[0]
         last = db.execute("SELECT max(fetched_at) FROM product_pages").fetchone()[0]

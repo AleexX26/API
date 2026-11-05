@@ -92,3 +92,12 @@ def test_print24_answer_is_only_used_for_the_default_configuration():
     data = _quantity_data()
     assert q.same_properties({"properties": [{"id": "7", "name": "seiten"}]}, data)  # the quantity is not part of the identity
     assert not q.same_properties({"properties": [{"id": "8", "name": "seiten"}]}, data)
+
+
+def test_one_page_without_a_price_request_is_skipped_but_three_in_a_row_stop_the_run():
+    import pytest
+    from app.collectors import print24_quantities as q
+    q.check_canary(1, "https://print24.com/es/a")
+    q.check_canary(2, "https://print24.com/es/b")  # a product without quantity configurator is not a block
+    with pytest.raises(ValueError, match="3 pages in a row"):
+        q.check_canary(3, "https://print24.com/es/c")
