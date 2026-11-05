@@ -1,6 +1,7 @@
 """Strict offline parser for the field paths reported by the user.
 
-The array envelope is provisional until checked against a complete real capture.
+The array envelope (array of {quantity: {id, shipping_type: [...]}}) was confirmed on 2026-11-05 against a complete real capture
+(5 quantities x 3 delivery types) copied from DevTools; no change to the parser was needed.
 Unknown fields are tolerated; absent/invalid known fields fail the whole batch.
 """
 import json

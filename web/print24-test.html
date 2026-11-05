@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba · Importar captura de Print24</title>
+<link rel="stylesheet" href="/assets/print24-test.css?v=1"><script src="/assets/print24-test.js?v=1" defer></script></head>
+<body><main>
+<h1>Importar una captura de Print24</h1>
+<p class="note"><strong>Esto es una importación manual, no una conexión en vivo.</strong> No llama a Print24: lee el texto que tú pegas.
+Pega <strong>solo</strong> el JSON de las pestañas <em>Payload</em> y <em>Response</em> de Chrome DevTools. No pegues cookies, el encabezado <code>Auth</code>, un HAR ni «Copy as cURL»: si el texto parece llevarlos, se rechaza.</p>
+<form id="capture" autocomplete="off">
+  <label for="response">Response (obligatorio)</label>
+  <textarea id="response" rows="8" spellcheck="false" placeholder='[{"quantity":{"id":"…","shipping_type":[…]}}]'></textarea>
+  <label for="payload">Payload (opcional: sirve para comprobar que las cantidades pedidas coinciden con las recibidas)</label>
+  <textarea id="payload" rows="4" spellcheck="false" placeholder='{"delivery_country_code":"ES","product_alias_id":…,"quantities":[…]}'></textarea>
+  <fieldset><legend>Configuración que muestra la página (la respuesta solo trae números, no se adivina)</legend>
+    <div class="grid">
+      <label>Formato<input id="f-format" placeholder="85 x 55 mm" required></label>
+      <label>Papel<input id="f-paper" placeholder="350 g/m² papel estucado" required></label>
+      <label>Caras<input id="f-sides" placeholder="1 cara" required></label>
+      <label>Acabado<input id="f-finishing" placeholder="Sin Acabados" required></label>
+      <label>Orientación (opcional)<input id="f-orientation" placeholder="Horizontal"></label>
+      <label>Tintas (opcional)<input id="f-inks" placeholder="4+0 tintas (CMYK)"></label>
+    </div></fieldset>
+  <button type="submit" id="send">Importar la captura</button>
+</form>
+<p id="result" role="status" aria-live="polite"></p>
+<h2>Capturas guardadas</h2>
+<p class="note">Salen en el comparador como productos de Print24 (también en <a href="/api/print24/captures">/api/print24/captures</a> y en el catálogo: <code>/api/catalog?q=print24</code>).</p>
+<div id="stored"></div>
+</main></body></html>

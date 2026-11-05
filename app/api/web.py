@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.services import app_settings, manual_prices
+from app.services import app_settings, manual_prices, print24_captures
 from app.services.cards import CARD_KEYS, CARD_TYPES, card_form
 from app.services.products import product_form
 from app.services.workbench import IDS, PROVIDERS, catalog_listing, general_links, init_db, save_quote, search, suggestions, valid_source
@@ -22,6 +22,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 STANDARD_KEYS = {"quantity": int, "format": str, "pages": str, "grams": str, "paper_type": str, "surface": str, "finishing": str, "inks": str, "days": int}
+
+
+class Print24Capture(BaseModel):
+    """A price-matrix answer copied from Chrome DevTools (tab Response) and, optionally, the request payload (tab Payload)."""
+    model_config = ConfigDict(extra="forbid")
+    response: str = Field(min_length=2, max_length=print24_captures.MAX_TEXT)  # raw text: money must never go through float
+    configuration: dict[str, str] = Field(max_length=8)
+    request_payload: dict | None = None
 
 
 class ScreenSettings(BaseModel):
@@ -236,7 +244,7 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
             same = ("http://127.0.0.1:8765", "http://localhost:8765") + ((f"http://{request.headers.get('host')}",) if lan else ())
             if origin and origin not in same:
                 return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
-            if lan and request.url.path.startswith(("/api/quotes", "/api/manual-prices", "/api/settings")) and client not in LOOPBACK:
+            if lan and request.url.path.startswith(("/api/quotes", "/api/manual-prices", "/api/settings", "/api/print24")) and client not in LOOPBACK:
                 return JSONResponse({"detail": "Solo lectura: los presupuestos se guardan desde el PC que aloja el comparador"}, status_code=403)
             if request.headers.get("content-type", "").split(";")[0] != "application/json":
                 return JSONResponse({"detail": "Se requiere JSON"}, status_code=415)
@@ -250,6 +258,10 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
     @app.get("/")
     def index():
         return FileResponse(ROOT / "web/index.html")
+
+    @app.get("/print24-test")
+    def print24_test_page():
+        return FileResponse(ROOT / "web/print24-test.html")
 
     @app.get("/api/providers")
     def providers():
@@ -385,6 +397,23 @@ def create_app(database: Path | None = None, seed: Path | None = None, catalog: 
         if not manual_prices.remove(database, data.id):
             raise HTTPException(404, "No existe ese precio")
         return {"deleted": data.id}
+
+    @app.post("/api/print24/captures/price-matrix", status_code=201)
+    def print24_capture(data: Print24Capture):
+        """Manual import of a capture. It does not call Print24, and refuses text that looks like cookies or credentials."""
+        if catalog is None:
+            raise HTTPException(503, "No hay base de catálogo configurada")
+        try:
+            result = print24_captures.import_capture(Path(catalog), data.response, data.configuration, data.request_payload)
+        except print24_captures.CaptureError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return result
+
+    @app.get("/api/print24/captures")
+    def print24_capture_list():
+        if catalog is None:
+            return {"items": []}
+        return {"items": print24_captures.list_captures(Path(catalog))}
 
     app.mount("/assets", StaticFiles(directory=ROOT / "web"), name="assets")
     return app
