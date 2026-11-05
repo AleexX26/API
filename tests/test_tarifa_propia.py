@@ -98,7 +98,7 @@ def make_book(path, sheets):
         body = []
         for number, row in enumerate(rows, start=1):
             cells = []
-            for column, value in zip("ABCDEFGHIJKLM", row):
+            for column, value in zip("ABCDEFGHIJKLMNOPQR", row):
                 if value is None or value == "":
                     continue
                 if isinstance(value, str):

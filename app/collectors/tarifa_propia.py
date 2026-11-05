@@ -303,6 +303,12 @@ def load_rest(db_path: Path, excel: Path, price: str = "web", now: datetime | No
     return report
 
 
+def sheet_names(path: Path) -> list[str]:
+    with zipfile.ZipFile(path) as book:
+        workbook = book.read("xl/workbook.xml").decode("utf-8")
+    return [html.unescape(n) for n, _ in re.findall(r'<sheet\b[^>]*?name="([^"]+)"[^>]*?r:id="([^"]+)"', workbook)]
+
+
 def clean_path(text: str) -> Path:
     """A path as people paste it: dragging a file into a PowerShell terminal gives `& 'C:\\my folder\\file.xlsx'`, other places give "quotes"."""
     text = text.strip()
@@ -318,12 +324,20 @@ if __name__ == "__main__":
     cli = argparse.ArgumentParser(description=__doc__)
     cli.add_argument("excel", type=clean_path)
     cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
-    cli.add_argument("--hojas", choices=("tarjetas", "resto", "todas"), default="todas", help="qué hojas cargar")
+    cli.add_argument("--hojas", choices=("auto", "tarjetas", "resto", "todas", "textil"), default="auto",
+                     help="qué hojas cargar: auto = las del Excel antiguo (TARJETAS DE VISITA y el resto) si existen, y TEXTIL/MERCHAN (Excel 2024) si existen")
     cli.add_argument("--precio", choices=tuple(PRICE_COLUMNS), default="web", help="columna de la hoja que se toma como precio de nuestra web: " + "; ".join(f"{k} = {v}" for k, v in PRICE_COLUMNS.items()))
     args = cli.parse_args()
     result = {}
-    if args.hojas in ("tarjetas", "todas"):
+    names = [n.lower() for n in sheet_names(args.excel)]
+    old = any("tarjetas de visita" in n for n in names)
+    if args.hojas == "auto" and not old and not any(n.strip() == "textil" for n in names):
+        raise SystemExit("Este Excel no tiene ninguna hoja que sepa leer (ni TARJETAS DE VISITA ni TEXTIL). Hojas: " + ", ".join(sheet_names(args.excel)))
+    if args.hojas in ("tarjetas", "todas") or (args.hojas == "auto" and old):
         result["TARJETAS DE VISITA"] = load(args.db, args.excel)
-    if args.hojas in ("resto", "todas"):
+    if args.hojas in ("resto", "todas") or (args.hojas == "auto" and old):
         result.update(load_rest(args.db, args.excel, args.precio))
+    if args.hojas == "textil" or (args.hojas == "auto" and any(n.strip() == "textil" for n in names)):
+        from app.collectors import tarifa_textil
+        result["TEXTIL y MERCHAN"] = tarifa_textil.load(args.db, args.excel)
     print(json.dumps(result, ensure_ascii=False, indent=1))
