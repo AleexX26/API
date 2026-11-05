@@ -18,9 +18,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.collectors import pacing
 from app.collectors.discovery import allowed
 from app.collectors.sitemaps import DEFAULT_ROBOTS
-from app.collectors.variants import API, CHALLENGE, PAUSE, build_payload
+from app.collectors.variants import API, CHALLENGE, build_payload
 from app.parsers.price_matrix import MatrixError, parse_matrix
 from app.parsers.product_page import calculation_data, default_configuration
 from app.services.importer import canonical_context, connect, import_matrix
@@ -78,7 +79,7 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
             page = browser.new_page(locale="es-ES", viewport={"width": 1300, "height": 1000})
             for number, url in enumerate(urls):
                 if number:
-                    time.sleep(PAUSE)
+                    pacing.human_pause()
                 first = []
                 watch = lambda r: first.append(r) if is_matrix_request(r) else None
                 page.on("response", watch)
@@ -106,7 +107,7 @@ def collect(db_path: Path, urls: list[str], *, maximum: int = 1000, headless: bo
                     for quantity in missing_quantities(data, stored_quantities(db, cid), maximum):
                         if quantity in stored_quantities(db, cid):  # an earlier answer already carried it
                             continue
-                        time.sleep(PAUSE)
+                        pacing.human_pause()
                         summary["steps"] += 1
                         box = page.locator("div[class*='Selectbox'][class*='handler']").filter(has_text=QUANTITY_BOX).first
                         box.scroll_into_view_if_needed()
@@ -147,7 +148,9 @@ if __name__ == "__main__":
     cli.add_argument("--visible", action="store_true", help="show the browser window")
     cli.add_argument("--todas", action="store_true", help="every Print24 page already collected (about 1-2 h), not only the business cards")
     cli.add_argument("url", nargs="*", default=[CARDS])
+    pacing.add_arguments(cli)
     args = cli.parse_args()
+    pacing.apply(args)
     urls = args.url
     if args.todas:
         with sqlite3.connect(args.db) as conn:

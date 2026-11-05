@@ -93,7 +93,7 @@ def test_cache_expiry_and_pause(tmp_path, monkeypatch):
     state = {}
     sitemaps.fetch_cached("https://print24.com/es/a.xml", tmp_path / "a.xml", now, state)
     sitemaps.fetch_cached("https://print24.com/es/b.xml", tmp_path / "b.xml", now, state)
-    assert sleeps == [sitemaps.PAUSE]  # pause only between the two real requests
+    assert len(sleeps) == 1 and 30 <= sleeps[0] <= 60  # one random pause (30-60 s), only between the two real requests
     _, cached = sitemaps.fetch_cached("https://print24.com/es/a.xml", tmp_path / "a.xml", now + timedelta(days=1), state)
     assert cached and state["requests"] == 2
     _, cached = sitemaps.fetch_cached("https://print24.com/es/a.xml", tmp_path / "a.xml", now + timedelta(days=31), state)

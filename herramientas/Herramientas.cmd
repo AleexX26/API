@@ -42,18 +42,28 @@ rem Print24 (fichas, caracteristicas y cantidades hasta 1000), nuestra web y, si
 rem Lo ya descargado esta en data\cache y no se vuelve a pedir. Ejecutalo en UN solo PC a la vez.
 call :entorno || exit /b 1
 if not exist "data\registros" mkdir "data\registros"
+echo.
+choice /c HR /n /m "Pausa entre pasos: [H] humana, al azar entre 30 s y 1 min (recomendada)  [R] rapida, 5-8 s (solo pruebas): "
+if errorlevel 2 (
+  set "PAUSA_MIN=5"
+  set "PAUSA_MAX=8"
+) else (
+  set "PAUSA_MIN=30"
+  set "PAUSA_MAX=60"
+)
+echo Pausa elegida: entre %PAUSA_MIN% y %PAUSA_MAX% segundos, distinta cada vez. Con pausa humana la recogida tarda muchas horas: dejala en el otro PC.
 echo === Print24: fichas nuevas ===
 "%PY%" -m app.collectors.products >> data\registros\print24.json 2>> data\registros\print24.log
 "%PY%" -m app.collectors.specs
 "%PY%" -m app.collectors.laimprentadeinternet --sitemap
 echo.
-choice /c TS /n /m "Cantidades de Print24: [T] todas las fichas, 1-2 horas  [S] solo tarjetas de visita: "
+choice /c TS /n /m "Cantidades de Print24: [T] todas las fichas, muchas horas  [S] solo tarjetas de visita: "
 set "ALL=%errorlevel%"
 echo.
-choice /c TCN /n /m "Truyol: [T] tarjetas y flyers, unos 40 minutos  [C] todo su catalogo, varias horas  [N] no recoger Truyol: "
+choice /c TCN /n /m "Truyol: [T] tarjetas y flyers, varias horas  [C] todo su catalogo, muchas horas  [N] no recoger Truyol: "
 set "TRU=%errorlevel%"
 echo.
-choice /c SN /n /m "Print24: [S] precios exactos de las tarjetas por gramaje, caras y acabado, 1-2 horas  [N] no: "
+choice /c SN /n /m "Print24: [S] precios exactos de las tarjetas por gramaje, caras y acabado, muchas horas  [N] no: "
 set "P24OPT=%errorlevel%"
 "%PY%" -c "import playwright" 2>nul
 if errorlevel 1 (
@@ -70,7 +80,7 @@ if errorlevel 1 (
     "%PY%" -m app.collectors.print24_options
   )
   echo.
-  echo === Nuestra web ^(unos 8 minutos^) ===
+  echo === Nuestra web: tarjetas, flyers, folletos, triptico y diptico ^(varias horas^) ===
   "%PY%" -m app.collectors.laimprentadeinternet 2>> data\registros\laimprentadeinternet.log
   echo.
   echo === Truyol ===

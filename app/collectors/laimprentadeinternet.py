@@ -16,13 +16,24 @@ from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qs
 
-from app.collectors import offers, sitemaps
+from app.collectors import offers, pacing, sitemaps
 from app.collectors.index_homepages import navigation_allowed
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER = "laimprentadeinternet"
 SITE = "https://laimprentadeinternet.com"
-PAGES = [f"{SITE}/impresion-de-tarjetas-de-visita/", f"{SITE}/tarjetas-de-visita-barniz-uvi-madrid/"]
+# Pages of our shop with the Uni CPO configurator AND a quantity select ("unidades"): business cards, flyers, brochures and the rest of
+# the products found by surveying every page of the product sitemap on 2026-11-05. The pages without a quantity select (banners, roll-ups,
+# stamps, vinyls, T-shirts...) price by size or by a typed number and are not read yet: they stay as links.
+PAGE_NAMES = (
+    "impresion-de-tarjetas-de-visita", "tarjetas-de-visita-barniz-uvi-madrid",
+    "impresion-de-flyers-publicitarios", "impresion-de-folletos", "impresion-de-folletos-tripticos", "impresion-dipticos",
+    "imprimir-papel-de-carta", "sobres-personalizados", "impresion-sobre-papeles-especiales", "posters-personalizados",
+    "encuadernacion-grapada", "encuadernacion-encolada", "encuadernacion-cosida", "carta-encuadernada",
+    "etiquetas-adhesivas-rollo", "calendarios-de-pared-baratos-madrid", "cajas-de-carton-grandes",
+    "boligrafos-merchandising", "botellas-termo-personalizadas", "tazas-de-colores", "cintas-lanyard-fullcolor", "estampacion-de-gorras",
+)
+PAGES = [f"{SITE}/{name}/" for name in PAGE_NAMES]
 AJAX = f"{SITE}/wp-admin/admin-ajax.php"
 PAUSE = 5
 CACHE_DAYS = 30
@@ -96,15 +107,28 @@ def days_in(label: str) -> tuple[int | None, str]:
     return high, f"{low}-{high} días hábiles" if high != low else f"{low} días hábiles"
 
 
+def size_label(label: str) -> str:
+    """'A6 105x148mm' -> 'A6 105 x 148 mm', '100x210mm cerrado' -> '100 x 210 mm cerrado'; 'A5 cerrado' stays as it is."""
+    return re.sub(r"(\d+)\s*x\s*(\d+)\s*mm", r"\1 x \2 mm", label, flags=re.I).strip()
+
+
+def field_title(name: str) -> str:
+    """'uni_cpo_plegado_tripticos' -> 'Plegado' (the group name of a select this module does not know)."""
+    word = name.split("_")[2] if name.count("_") >= 2 else name
+    return {"papel": "Papel", "diametro": "Diámetro", "barniz": "Barniz", "acabado": "Acabados"}.get(word, word.capitalize())
+
+
 def spec_for(info: dict, form: list[dict], combo: dict) -> tuple[list[dict], int | None, list[str]]:
     """Characteristics as the other providers' pages name them (so the card filters read them the same), the delivery
     days and the pieces of the configuration's name."""
     from app.services.cards import grams_in, sizes_in
     text = info["description"]
     spec, days, names = [], None, []
-    if sizes := sorted(sizes_in(text), key=lambda s: -s[0]):
+    sized = any("tamano" in f["name"] or "tamanio" in f["name"] for f in form)  # a size select says the size of each combination; the text may list several
+    if not sized and (sizes := sorted(sizes_in(text), key=lambda s: -s[0])):
         spec.append({"group": "Formato", "label": f"{sizes[0][0]} x {sizes[0][1]} mm"})
-    if grams := sorted(grams_in(text)):
+    grams = sorted(grams_in(text))
+    if len(grams) == 1 and not any("papel" in f["name"] for f in form):
         spec.append({"group": "Papel", "label": f"{grams[0]} g/m² papel estucado" if "estucado" in text.lower() else f"{grams[0]} g/m²"})
     for field in form:
         label = next(o["label"] for o in field["options"] if o["value"] == combo[field["name"]])
@@ -117,12 +141,22 @@ def spec_for(info: dict, form: list[dict], combo: dict) -> tuple[list[dict], int
         elif "acabado" in name:
             spec.append({"group": "Acabados", "label": "sin acabado" if label.lower().startswith("sin") else label})
             names.append("Sin acabado" if label.lower().startswith("sin") else label)
-        elif "envio" in name:
+        elif "envio" in name or "entrega" in name:
             days, shown = days_in(label)
             spec.append({"group": "Plazo de producción", "label": shown or label})
             names.append(re.sub(r"\s*[+]\s*\d+\s*€", "", label).replace("gratis", "").strip())
         elif fixed(name):
             spec.append({"group": "Revisión de tu diseño", "label": "revisión gratis"})
+        elif "tamano" in name or "tamanio" in name:
+            spec.append({"group": "Formato", "label": size_label(label)})
+            names.append(size_label(label))
+        elif "pagina" in name:
+            pages = re.sub(r"\D", "", label)
+            spec.append({"group": "Páginas", "label": f"{pages} páginas" if pages else label})
+            names.append(f"{pages} páginas" if pages else label)
+        else:  # any other select: shown as it is, so two combinations never share a name
+            spec.append({"group": field_title(name), "label": label})
+            names.append(label)
     return spec, days, names
 
 
@@ -156,10 +190,10 @@ def state_of(response) -> dict:
     return {k[5:-1]: v[0] for k, v in data.items() if k.startswith("data[uni_cpo_")}
 
 
-def read_prices(url: str, form: list[dict], prices: dict, log=None) -> None:
+def read_prices(url: str, form: list[dict], prices: dict, log=None, limit: int | None = None) -> None:
     """Drive the page's selects in a real browser and store the calculator's answer for every missing combination."""
     from playwright.sync_api import sync_playwright
-    wanted = [c for c in combinations(form) if key_of(c) not in prices]
+    wanted = [c for c in combinations(form) if key_of(c) not in prices][:limit]  # limit: only for a short test run
     if not wanted:
         return
     with sync_playwright() as p:
@@ -188,7 +222,7 @@ def read_prices(url: str, form: list[dict], prices: dict, log=None) -> None:
                 with page.expect_response(lambda r: is_calc(r) and state_of(r) == state, timeout=30000) as info:
                     page.select_option(f"select[name={name}]", value)
                 record(info.value)
-                time.sleep(PAUSE)
+                pacing.human_pause()
 
             for combo in wanted:
                 for name, value in combo.items():
@@ -239,7 +273,7 @@ def sitemap_pages(db_path: Path, cache_dir: Path, now: datetime | None = None) -
     return {"pages": len(pages), "with_prices": priced, "links": linked}
 
 
-def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, now: datetime | None = None, log=None) -> dict:
+def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, now: datetime | None = None, log=None, limit: int | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     cache_dir.mkdir(parents=True, exist_ok=True)
     state: dict = {}
@@ -269,7 +303,7 @@ def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, now: 
             prices = saved.get("prices", {}) if fresh and saved.get("form") == form else {}
             started = saved.get("fetched_at") if prices else now.isoformat()
             try:
-                read_prices(url, form, prices, log)
+                read_prices(url, form, prices, log, limit)
             finally:  # keep what was read even if the run stops half way
                 store.write_text(json.dumps({"fetched_at": started, "form": form, "prices": prices}, ensure_ascii=False), encoding="utf-8")
             products = build_offers(url, info, form, prices)
@@ -289,11 +323,14 @@ if __name__ == "__main__":
     cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
     cli.add_argument("--cache", type=Path, default=ROOT / "data/cache/laimprentadeinternet")
     cli.add_argument("--sitemap", action="store_true", help="solo guardar las fichas de nuestra tienda (sitemap) como enlaces sin precio")
+    cli.add_argument("--max-combos", type=int, help="solo para probar: combinaciones máximas por página (lo ya leído no cuenta)")
     cli.add_argument("url", nargs="*")
+    pacing.add_arguments(cli)
     args = cli.parse_args()
+    pacing.apply(args)
     if args.sitemap:
         print(json.dumps(sitemap_pages(args.db, args.cache), ensure_ascii=False, indent=1))
         raise SystemExit(0)
-    result = collect(args.db, args.cache, args.url or None,
+    result = collect(args.db, args.cache, args.url or None, limit=args.max_combos,
                      log=lambda done, total: print(json.dumps({"precios": done, "de": total}), file=sys.stderr, flush=True))
     print(json.dumps(result, ensure_ascii=False, indent=1))

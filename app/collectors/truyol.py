@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from app.collectors import offers, sitemaps
+from app.collectors import offers, pacing, sitemaps
 from app.collectors.index_homepages import navigation_allowed
 from app.collectors.laimprentadeinternet import slug
 
@@ -180,7 +180,7 @@ def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, *, he
                 page.on("response", lambda r: answers.append(r) if is_price_request(r) else None)
 
                 def choose(selector: str, value: str) -> None:
-                    time.sleep(PAUSE)
+                    pacing.human_pause()
                     summary["steps"] += 1
                     with page.expect_response(is_price_request, timeout=30000):
                         page.select_option(selector, value)
@@ -188,7 +188,7 @@ def collect(db_path: Path, cache_dir: Path, urls: list[str] | None = None, *, he
 
                 for number, url in enumerate(urls):
                     if number:
-                        time.sleep(PAUSE)
+                        pacing.human_pause()
                     answers.clear()
                     page.goto(url, wait_until="domcontentloaded", timeout=60000)
                     page.wait_for_timeout(5000)
@@ -254,7 +254,9 @@ if __name__ == "__main__":
     cli.add_argument("--max-configs", type=int, default=MAX_CONFIGS, help="combinaciones máximas por ficha")
     cli.add_argument("--visible", action="store_true", help="show the browser window")
     cli.add_argument("url", nargs="*", help="fichas concretas (sustituyen a --grupo)")
+    pacing.add_arguments(cli)
     args = cli.parse_args()
+    pacing.apply(args)
     if args.url:
         chosen = args.url
     elif args.grupo == "catalogo":

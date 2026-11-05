@@ -17,11 +17,11 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.collectors import offers, sitemaps
+from app.collectors import offers, pacing, sitemaps
 from app.collectors.discovery import allowed
 from app.collectors.laimprentadeinternet import slug
 from app.collectors.sitemaps import DEFAULT_ROBOTS
-from app.collectors.variants import API, CHALLENGE, PAUSE
+from app.collectors.variants import API, CHALLENGE
 from app.parsers.price_matrix import MatrixError, parse_matrix
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -148,7 +148,7 @@ def collect(db_path: Path, url: str = CARDS, *, max_configs: int = MAX_CONFIGS, 
                     if index is None:
                         return []
                     before = listed()
-                    time.sleep(PAUSE)
+                    pacing.human_pause()
                     box = page.locator(HANDLER).nth(index)
                     box.scroll_into_view_if_needed()
                     box.dispatch_event("click")
@@ -234,5 +234,7 @@ if __name__ == "__main__":
     cli.add_argument("--max", type=int, default=1000, help="cantidad máxima")
     cli.add_argument("--visible", action="store_true", help="show the browser window")
     cli.add_argument("url", nargs="?", default=CARDS)
+    pacing.add_arguments(cli)
     args = cli.parse_args()
+    pacing.apply(args)
     print(json.dumps(collect(args.db, args.url, max_configs=args.max_configs, maximum=args.max, headless=not args.visible), indent=1, ensure_ascii=False))

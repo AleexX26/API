@@ -17,6 +17,7 @@ from xml.etree import ElementTree
 
 import certifi
 
+from app.collectors import pacing
 from app.collectors.discovery import AGENT, ORIGIN, NoRedirect, allowed, spanish_url
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,7 +73,7 @@ def fetch_cached(url: str, cache_file: Path, now: datetime, state: dict, max_age
         if now - fetched < timedelta(days=max_age_days):
             return cache_file.read_bytes(), True
     if state.get("requests"):
-        time.sleep(PAUSE)
+        pacing.human_pause()
     state["requests"] = state.get("requests", 0) + 1
     # certificates are always verified; certifi's list also knows roots (Sectigo R46, Truyol) missing from some Python installs
     url = quote(url, safe=":/?&=%#+@,;~!$'()*[]")  # a sitemap may list accents (piñata) that http.client cannot send as they are

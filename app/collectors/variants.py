@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from app.collectors import pacing
 from app.collectors.discovery import allowed
 from app.collectors.sitemaps import DEFAULT_ROBOTS
 from app.parsers.price_matrix import MatrixError, parse_matrix
@@ -114,7 +115,7 @@ def collect(db_path: Path, urls: list[str], cache_dir: Path, *, max_variations: 
             first = True
             for url in urls:
                 if not first:
-                    time.sleep(PAUSE)
+                    pacing.human_pause()
                 first = False
                 page.goto(url, wait_until="domcontentloaded", timeout=60000)
                 html = page.content()
@@ -123,7 +124,7 @@ def collect(db_path: Path, urls: list[str], cache_dir: Path, *, max_variations: 
                 data = calculation_data(html)
 
                 def ask(change):
-                    time.sleep(PAUSE)
+                    pacing.human_pause()
                     reply = page.evaluate(FETCH_JS, build_payload(data, change))
                     return reply["status"], reply["text"]
 
@@ -170,5 +171,7 @@ if __name__ == "__main__":
     cli.add_argument("--max-variations", type=int, help="limit variations per product")
     cli.add_argument("--visible", action="store_true", help="show the browser window")
     cli.add_argument("url", nargs="+")
+    pacing.add_arguments(cli)
     args = cli.parse_args()
+    pacing.apply(args)
     print(json.dumps(collect(args.db, args.url, args.cache, max_variations=args.max_variations, headless=not args.visible), indent=1))
