@@ -231,3 +231,14 @@ def test_a_table_whose_web_column_is_empty_keeps_the_tariff_price(tmp_path):
     assert [b["prices"] for b in blocks] == [{100: Decimal("139"), 250: Decimal("175")}]
     assert blocks[0]["costs"] == {100: Decimal("88.84"), 250: Decimal("99.96")}
     assert "icon_prices" not in blocks[0]
+
+
+def test_a_pasted_path_loses_the_powershell_ampersand_and_the_quotes():
+    from pathlib import Path
+    name = r"c:\Users\Iconestudio\Downloads\precios la imprenta de internet 2024.xlsx"
+    expected = Path(name)
+    assert tariff.clean_path("& '" + name + "'") == expected  # what dragging a file into PowerShell gives
+    assert tariff.clean_path('"' + name + '"') == expected
+    assert tariff.clean_path("  '" + name + "'  ") == expected
+    assert tariff.clean_path('& "' + name + '"') == expected
+    assert tariff.clean_path(r"C:\Users\a\tarifa.xlsx") == Path(r"C:\Users\a\tarifa.xlsx")  # a clean path stays as it is

@@ -303,10 +303,20 @@ def load_rest(db_path: Path, excel: Path, price: str = "web", now: datetime | No
     return report
 
 
+def clean_path(text: str) -> Path:
+    """A path as people paste it: dragging a file into a PowerShell terminal gives `& 'C:\\my folder\\file.xlsx'`, other places give "quotes"."""
+    text = text.strip()
+    if text.startswith("&"):
+        text = text[1:].strip()
+    while len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    return Path(text)
+
+
 if __name__ == "__main__":
     import argparse
     cli = argparse.ArgumentParser(description=__doc__)
-    cli.add_argument("excel", type=Path)
+    cli.add_argument("excel", type=clean_path)
     cli.add_argument("--db", type=Path, default=ROOT / "data/catalog.sqlite3")
     cli.add_argument("--hojas", choices=("tarjetas", "resto", "todas"), default="todas", help="qué hojas cargar")
     cli.add_argument("--precio", choices=tuple(PRICE_COLUMNS), default="web", help="columna de la hoja que se toma como precio de nuestra web: " + "; ".join(f"{k} = {v}" for k, v in PRICE_COLUMNS.items()))
