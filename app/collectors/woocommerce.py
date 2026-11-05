@@ -163,16 +163,19 @@ def _canonical(url: str) -> str:
 
 
 def coverage(db_path: Path) -> dict:
-    """Which published products of the shop have prices in the comparator, only a link, or nothing at all."""
+    """Which published products of the shop have prices in the comparator, only a link, or nothing at all (plus the unpublished ones)."""
     db = offers.connect(db_path)
     try:
         db.executescript(SCHEMA)
         priced = {_canonical(u) for (u,) in db.execute("SELECT DISTINCT substr(product_url, 1, instr(product_url || '#', '#') - 1) FROM supplier_offers WHERE provider='laimprentadeinternet'")}
         linked = {_canonical(u) for (u,) in db.execute("SELECT url FROM supplier_pages WHERE provider='laimprentadeinternet'")}
-        report = {"with_prices": [], "link_only": [], "missing": []}
-        for name, url in db.execute("SELECT name, url FROM shop_products WHERE status='publish' ORDER BY name"):
+        report = {"with_prices": [], "link_only": [], "missing": [], "unpublished": []}
+        for name, url, kind, price, status in db.execute("SELECT name, url, type, price, status FROM shop_products ORDER BY name"):
+            if status != "publish":
+                report["unpublished"].append({"name": name, "status": status})
+                continue
             key = _canonical(url)
-            report["with_prices" if key in priced else "link_only" if key in linked else "missing"].append({"name": name, "url": url})
+            report["with_prices" if key in priced else "link_only" if key in linked else "missing"].append({"name": name, "url": url, "type": kind, "price": price})
         return report
     finally:
         db.close()
@@ -198,7 +201,10 @@ def run(db_path: Path, env: dict[str, str] | None = None, opener=None, pause=pac
     cover = coverage(db_path)
     return {**summary, "published": len(cover["with_prices"]) + len(cover["link_only"]) + len(cover["missing"]),
             "with_prices": len(cover["with_prices"]), "link_only": len(cover["link_only"]),
-            "missing_in_comparator": [p["name"] for p in cover["missing"]], "link_only_names": [p["name"] for p in cover["link_only"]]}
+            "missing_in_comparator": [p["name"] for p in cover["missing"]],
+            # type and base price of WooCommerce for each product without prices here (a simple or variable product may have a real price)
+            "link_only_names": [f"{p['name']} [{p['type']}" + (f", precio base {p['price']}" if p["price"] else "") + "]" for p in cover["link_only"]],
+            "unpublished": [f"{p['name']} [{p['status']}]" for p in cover["unpublished"]]}
 
 
 if __name__ == "__main__":

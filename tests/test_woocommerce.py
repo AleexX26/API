@@ -150,6 +150,8 @@ def test_coverage_says_which_published_products_have_prices_only_a_link_or_nothi
     assert [p["name"] for p in report["with_prices"]] == ["Producto 1"]
     assert [p["name"] for p in report["link_only"]] == ["Producto 2"]  # www and trailing slash do not matter
     assert [p["name"] for p in report["missing"]] == ["Producto 3"]  # the draft is not counted
+    assert report["unpublished"] == [{"name": "Producto 4", "status": "draft"}]
+    assert report["link_only"][0]["type"] == "simple" and report["link_only"][0]["price"] == "9.5"
 
 
 def test_the_local_api_lists_the_shop_products_and_the_coverage(tmp_path):
@@ -161,5 +163,15 @@ def test_the_local_api_lists_the_shop_products_and_the_coverage(tmp_path):
     with TestClient(create_app(tmp_path / "work.sqlite3", seed, tmp_path / "catalog.sqlite3")) as client:
         listed = client.get("/api/shop/products", params={"q": "producto 2"}).json()["items"]
         assert [i["id"] for i in listed] == [2]
-        assert set(client.get("/api/shop/coverage").json()) == {"with_prices", "link_only", "missing"}
+        assert set(client.get("/api/shop/coverage").json()) == {"with_prices", "link_only", "missing", "unpublished"}
         assert "consumer" not in client.get("/api/shop/products").text.lower()  # nothing secret is ever served
+
+
+def test_the_summary_shows_type_and_base_price_of_what_has_no_prices_yet(tmp_path):
+    summary = woo.run(tmp_path / "c.sqlite3", ENV, Opener(products=[product(1), {**product(2), "status": "draft"}]), pause=lambda: None)
+    assert summary["link_only_names"] == [] and summary["missing_in_comparator"] == ["Producto 1"]
+    assert summary["unpublished"] == ["Producto 2 [draft]"]
+    conn = offers.connect(tmp_path / "c.sqlite3")
+    offers.record_page(conn, "laimprentadeinternet", "https://shop.example.test/p1/", "2026-11-05", "failed", 0, "x")
+    conn.close()
+    assert woo.run(tmp_path / "c.sqlite3", ENV, Opener(products=[product(1)]), pause=lambda: None)["link_only_names"] == ["Producto 1 [simple, precio base 9.5]"]
